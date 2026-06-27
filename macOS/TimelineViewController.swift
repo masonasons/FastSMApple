@@ -674,8 +674,8 @@ final class TimelineViewController: NSViewController {
     }
 
     private func presentUserInfo(_ user: User) {
-        guard let window = view.window else { return }
-        let controller = UserInfoWindowController(user: user) { [weak self] action in
+        guard let window = view.window, let account = currentAccount else { return }
+        let controller = UserInfoWindowController(user: user, account: account) { [weak self] action in
             self?.handle(action, for: user)
         }
         userInfoController = controller
