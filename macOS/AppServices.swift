@@ -216,6 +216,16 @@ final class AppServices {
         Task { await controller.clear() }
     }
 
+    /// Clear every timeline belonging to the current account (items + cache).
+    func clearCurrentAccountTimelines() {
+        guard let accountKey = selectedRef?.account.accountKey else { return }
+        for index in timelineRefs.indices
+        where timelineRefs[index].account.accountKey == accountKey && controllers.indices.contains(index) {
+            let controller = controllers[index]
+            Task { await controller.clear() }
+        }
+    }
+
     private func makeController(for ref: TimelineRef) -> TimelineController {
         let controller = TimelineController(cache: cache)
         controller.pageCountProvider = { [weak self] in self?.settings.settings.fetchPages ?? 1 }

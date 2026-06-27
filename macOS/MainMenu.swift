@@ -83,6 +83,8 @@ enum MainMenu {
         timelineMenu.addItem(.separator())
         let clear = timelineMenu.addItem(withTitle: "Clear Timeline", action: #selector(TimelineViewController.clearTimeline(_:)), keyEquivalent: "\u{8}")
         clear.keyEquivalentModifierMask = [.command]
+        let clearAll = timelineMenu.addItem(withTitle: "Clear All Timelines", action: #selector(TimelineViewController.clearAllTimelines(_:)), keyEquivalent: "\u{8}")
+        clearAll.keyEquivalentModifierMask = [.control, .command, .shift]
         let undoNav = timelineMenu.addItem(withTitle: "Go Back", action: #selector(TimelineViewController.undoTimelineNavigation(_:)), keyEquivalent: "z")
         undoNav.keyEquivalentModifierMask = [.command]
         timelineMenu.addItem(.separator())

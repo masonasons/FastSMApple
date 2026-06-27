@@ -263,6 +263,24 @@ final class TimelineViewController: NSViewController {
         } else { act() }
     }
 
+    /// ⌃⌘⇧⌫: clear every timeline for the current account.
+    @objc func clearAllTimelines(_ sender: Any?) {
+        let act = { [weak self] in
+            guard let self else { return }
+            self.services.playEarcon(.delete)
+            self.services.clearCurrentAccountTimelines()
+            self.focusTable()
+        }
+        if services.settings.settings.confirmClearTimeline {
+            confirm(
+                message: "Clear all timelines for \(services.currentAccountHandle ?? "this account")?",
+                info: "This removes the loaded posts and cache for every timeline on this account. Refresh to load them again.",
+                confirmTitle: "Clear All",
+                perform: act
+            )
+        } else { act() }
+    }
+
     private func confirm(message: String, info: String = "", confirmTitle: String, perform: @escaping () -> Void) {
         guard let window = view.window else { perform(); return }
         let alert = NSAlert()
