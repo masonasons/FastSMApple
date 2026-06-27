@@ -261,18 +261,7 @@ struct TimelinePageView: View {
     /// the saved/synced position to match).
     @AccessibilityFocusState private var focusedID: String?
 
-    /// Namespace tying each row to its movement-rotor entries.
-    @Namespace private var rotorNamespace
-
     private var items: [TimelineItem] { model.items(forKey: ref.key) }
-
-    // Backed by the model so the position persists across page revisits/restarts.
-    private var selection: Binding<String?> {
-        Binding(
-            get: { model.selectedItemID(forKey: ref.key) },
-            set: { model.setSelectedItemID($0, forKey: ref.key) }
-        )
-    }
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -280,20 +269,30 @@ struct TimelinePageView: View {
         }
     }
 
+    // A ScrollView + LazyVStack (not List) so VoiceOver custom rotors can move
+    // focus between rows — List doesn't support that. Position is tracked via
+    // accessibilityFocused, so no List selection binding is needed.
     @ViewBuilder
     private func timelineList(_ proxy: ScrollViewProxy) -> some View {
-        List(selection: selection) {
-            ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
-                TimelineItemRow(item: item, demojify: model.settingsDemojify)
-                    .tag(item.id)
+        ScrollView {
+            LazyVStack(spacing: 0) {
+                ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                    VStack(spacing: 0) {
+                        TimelineItemRow(item: item, demojify: model.settingsDemojify)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal)
+                            .padding(.vertical, 8)
+                        Divider()
+                    }
+                    .id(item.id)
+                    .accessibilityElement(children: .combine)
                     .accessibilityFocused($focusedID, equals: item.id)
-                    .accessibilityRotorEntry(id: item.id, in: rotorNamespace)
                     .contextMenu { PostActions(item: item, ref: ref, index: index) }
                     .accessibilityActions { PostActions(item: item, ref: ref, index: index, reversed: true) }
                     .task { await model.loadOlderIfNeeded(key: ref.key, index: index) }
+                }
             }
         }
-        .listStyle(.plain)
         .refreshable { await model.refresh(key: ref.key) }
         .overlay { if items.isEmpty { ContentUnavailableView("No Posts", systemImage: "tray") } }
         .background { postShortcuts }
@@ -320,9 +319,9 @@ struct TimelinePageView: View {
                 ForEach(stops, id: \.self) { idx in
                     if items.indices.contains(idx) {
                         let id = items[idx].id
-                        // `prepare` scrolls the target into view so the lazy List
-                        // realizes the row — otherwise VoiceOver can't land on it.
-                        AccessibilityRotorEntry(Text(rotorLabel(idx)), id: id, in: rotorNamespace) {
+                        // Entry id matches the List row's identity; `prepare`
+                        // scrolls it into view so the lazy row is realized first.
+                        AccessibilityRotorEntry(Text(rotorLabel(idx)), id: id) {
                             proxy.scrollTo(id, anchor: .center)
                         }
                     }
