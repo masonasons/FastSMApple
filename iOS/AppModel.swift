@@ -522,6 +522,8 @@ final class AppModel {
     func updateSyncHomePosition(_ value: Bool) { settings.update { $0.syncHomePosition = value } }
     var settingsStreaming: Bool { settings.settings.streamingEnabled }
     func updateStreaming(_ value: Bool) { settings.update { $0.streamingEnabled = value } }
+    var settingsRecordEveryNavStep: Bool { settings.settings.recordEveryNavStep }
+    func updateRecordEveryNavStep(_ value: Bool) { settings.update { $0.recordEveryNavStep = value } }
 
     // MARK: Links & media
 

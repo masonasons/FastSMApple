@@ -44,6 +44,10 @@ public struct AppSettings: Codable, Sendable, Equatable {
     /// Sync the home timeline read position with the server (Mastodon markers).
     public var syncHomePosition: Bool
 
+    /// Record every selection step in navigation history (for undo / Go Back),
+    /// not just jumps. Off = only jumps are recorded.
+    public var recordEveryNavStep: Bool
+
     /// Stream timelines in real time (Mastodon).
     public var streamingEnabled: Bool
 
@@ -69,6 +73,7 @@ public struct AppSettings: Codable, Sendable, Equatable {
         movement: MovementSettings = .default,
         autoRefreshSeconds: Int = 0,
         syncHomePosition: Bool = false,
+        recordEveryNavStep: Bool = false,
         streamingEnabled: Bool = false
     ) {
         self.enterToSend = enterToSend
@@ -84,6 +89,7 @@ public struct AppSettings: Codable, Sendable, Equatable {
         self.movement = movement
         self.autoRefreshSeconds = autoRefreshSeconds
         self.syncHomePosition = syncHomePosition
+        self.recordEveryNavStep = recordEveryNavStep
         self.streamingEnabled = streamingEnabled
     }
 
@@ -106,6 +112,7 @@ public struct AppSettings: Codable, Sendable, Equatable {
         movement = (try container.decodeIfPresent(MovementSettings.self, forKey: .movement) ?? .default).normalized()
         autoRefreshSeconds = try container.decodeIfPresent(Int.self, forKey: .autoRefreshSeconds) ?? 0
         syncHomePosition = try container.decodeIfPresent(Bool.self, forKey: .syncHomePosition) ?? false
+        recordEveryNavStep = try container.decodeIfPresent(Bool.self, forKey: .recordEveryNavStep) ?? false
         streamingEnabled = try container.decodeIfPresent(Bool.self, forKey: .streamingEnabled) ?? false
     }
 }
@@ -141,6 +148,7 @@ public final class SettingsStore {
         }
         SpeechConfig.current = settings.speech
         MovementConfig.current = settings.movement
+        TimelineController.recordsEveryNavStep = settings.recordEveryNavStep
     }
 
     /// Mutate, persist, and notify in one call.
@@ -148,6 +156,7 @@ public final class SettingsStore {
         mutate(&settings)
         SpeechConfig.current = settings.speech
         MovementConfig.current = settings.movement
+        TimelineController.recordsEveryNavStep = settings.recordEveryNavStep
         save()
         onChange?()
     }

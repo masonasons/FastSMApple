@@ -22,6 +22,7 @@ struct SettingsView: View {
     @State private var autoRefresh: Int = 0
     @State private var syncHomePosition: Bool = false
     @State private var streaming: Bool = false
+    @State private var recordEveryNavStep: Bool = false
 
     private func autoRefreshLabel(_ seconds: Int) -> String {
         switch seconds {
@@ -93,6 +94,8 @@ struct SettingsView: View {
                         .onChange(of: syncHomePosition) { _, value in model.updateSyncHomePosition(value) }
                     Toggle("Stream in real time (Mastodon)", isOn: $streaming)
                         .onChange(of: streaming) { _, value in model.updateStreaming(value) }
+                    Toggle("Go Back remembers every step (not just jumps)", isOn: $recordEveryNavStep)
+                        .onChange(of: recordEveryNavStep) { _, value in model.updateRecordEveryNavStep(value) }
                 } header: {
                     Text("Timelines")
                 } footer: {
@@ -127,6 +130,7 @@ struct SettingsView: View {
                 autoRefresh = model.settingsAutoRefresh
                 syncHomePosition = model.settingsSyncHomePosition
                 streaming = model.settingsStreaming
+                recordEveryNavStep = model.settingsRecordEveryNavStep
             }
         }
     }

@@ -25,8 +25,8 @@ public final class TimelineController {
     private var navHistory: [String] = []
     private let maxNavHistory = 10
     /// When true, every selection move is recorded; otherwise only "jumps" (moves
-    /// of more than one row). Set from settings.
-    public var recordsEveryNavStep = false
+    /// of more than one row). App-wide preference, set from settings.
+    public static var recordsEveryNavStep = false
 
     /// Fired after `items`/`isLoading` change so non-observing UIs refresh.
     public var onChange: (() -> Void)?
@@ -69,7 +69,7 @@ public final class TimelineController {
         let newIndex = newID.flatMap { id in items.firstIndex { $0.id == id } }
         let isJump: Bool
         if let oldIndex, let newIndex { isJump = abs(oldIndex - newIndex) > 1 } else { isJump = true }
-        guard isJump || recordsEveryNavStep else { return }
+        guard isJump || Self.recordsEveryNavStep else { return }
         guard navHistory.last != oldID else { return }
         navHistory.append(oldID)
         if navHistory.count > maxNavHistory { navHistory.removeFirst() }

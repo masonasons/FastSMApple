@@ -149,8 +149,9 @@ final class TimelineMergeTests: XCTestCase {
     }
 
     func testNavigationHistoryEveryStepWhenEnabled() async {
+        TimelineController.recordsEveryNavStep = true
+        defer { TimelineController.recordsEveryNavStep = false }
         let controller = await loadedController()
-        controller.recordsEveryNavStep = true
         let ids = controller.items.map(\.id)
 
         controller.noteUserSelection(ids[0])

@@ -168,6 +168,11 @@ final class SettingsWindowController: NSWindowController {
             "Stream timelines in real time (Mastodon only)",
             on: settings.settings.streamingEnabled, action: #selector(toggleStreaming(_:))))
         stack.addArrangedSubview(detail("Receive new posts/mentions live over a streaming connection."))
+
+        stack.addArrangedSubview(checkbox(
+            "Go Back remembers every step, not just jumps",
+            on: settings.settings.recordEveryNavStep, action: #selector(toggleRecordEveryNavStep(_:))))
+        stack.addArrangedSubview(detail("⌘Z steps back through navigation history. When off, only jumps (movement units, big moves) are recorded."))
     }
 
     @objc private func toggleSyncHomePosition(_ sender: NSButton) {
@@ -176,6 +181,10 @@ final class SettingsWindowController: NSWindowController {
 
     @objc private func toggleStreaming(_ sender: NSButton) {
         settings.update { $0.streamingEnabled = (sender.state == .on) }
+    }
+
+    @objc private func toggleRecordEveryNavStep(_ sender: NSButton) {
+        settings.update { $0.recordEveryNavStep = (sender.state == .on) }
     }
 
     static func autoRefreshLabel(_ seconds: Int) -> String {
