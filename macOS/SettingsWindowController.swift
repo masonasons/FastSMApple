@@ -18,6 +18,8 @@ final class SettingsWindowController: NSWindowController {
     private let fetchPagesValueLabel = NSTextField(labelWithString: "")
     private let cacheLimitStepper = NSStepper()
     private let cacheLimitValueLabel = NSTextField(labelWithString: "")
+    private let usernamesStepper = NSStepper()
+    private let usernamesValueLabel = NSTextField(labelWithString: "")
 
     init(settings: SettingsStore) {
         self.settings = settings
@@ -151,6 +153,12 @@ final class SettingsWindowController: NSWindowController {
             "Remove emoji from display names:", popup: nameEmojiPopup,
             selected: settings.settings.nameEmojiRemoval, action: #selector(changeNameEmoji(_:))))
         stack.addArrangedSubview(detail("Unicode = 😀 · Custom = Mastodon :shortcode: emoji."))
+        stack.addArrangedSubview(stepperRow(
+            label: "Max usernames shown in a post (0 = all):",
+            stepper: usernamesStepper, valueLabel: usernamesValueLabel,
+            range: 0...20, increment: 1,
+            value: settings.settings.maxUsernamesInPost, action: #selector(changeMaxUsernames(_:))))
+        stack.addArrangedSubview(detail("Collapses a long leading @mention list (e.g. big reply chains)."))
         stack.addArrangedSubview(checkbox(
             "Use ⌘Return to send posts (instead of Return)",
             on: !settings.settings.enterToSend, action: #selector(toggleCommandReturn(_:))))
@@ -302,5 +310,10 @@ final class SettingsWindowController: NSWindowController {
     @objc private func changeCacheLimit(_ sender: NSStepper) {
         cacheLimitValueLabel.stringValue = "\(sender.integerValue)"
         settings.update { $0.cacheLimit = sender.integerValue }
+    }
+
+    @objc private func changeMaxUsernames(_ sender: NSStepper) {
+        usernamesValueLabel.stringValue = sender.integerValue == 0 ? "All" : "\(sender.integerValue)"
+        settings.update { $0.maxUsernamesInPost = sender.integerValue }
     }
 }

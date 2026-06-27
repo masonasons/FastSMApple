@@ -28,7 +28,7 @@ public enum NotificationPresenter {
         let phrase = actionPhrase(notification.type)
         let time = RelativeDate.compact(notification.createdAt, now: now)
         if let text = notification.status?.displayStatus.text, !text.isEmpty {
-            return "\(who) \(phrase) (\(time)): \(text.strippingEmoji(emoji.post))"
+            return "\(who) \(phrase) (\(time)): \(text.truncatingLeadingMentions(max: emoji.maxMentions).strippingEmoji(emoji.post))"
         }
         return "\(who) \(phrase) (\(time))"
     }
@@ -40,7 +40,7 @@ public enum NotificationPresenter {
             parts.append("@\(notification.account.acct)")
         }
         if let text = notification.status?.displayStatus.text, !text.isEmpty {
-            parts.append(text.strippingEmoji(emoji.post))
+            parts.append(text.truncatingLeadingMentions(max: emoji.maxMentions).strippingEmoji(emoji.post))
         }
         parts.append(RelativeDate.spoken(notification.createdAt, now: now))
         return parts.joined(separator: ", ")

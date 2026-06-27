@@ -41,7 +41,7 @@ struct StatusRow: View {
                     .foregroundStyle(.secondary)
             }
 
-            Text(display.text.strippingEmoji(emoji.post))
+            Text(display.text.truncatingLeadingMentions(max: emoji.maxMentions).strippingEmoji(emoji.post))
                 .font(.body)
 
             if !display.mediaAttachments.isEmpty {

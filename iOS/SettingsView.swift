@@ -18,6 +18,7 @@ struct SettingsView: View {
     @State private var soundsEnabled: Bool = true
     @State private var postEmojiRemoval: EmojiRemoval = .none
     @State private var nameEmojiRemoval: EmojiRemoval = .none
+    @State private var maxUsernamesInPost: Int = 0
     @State private var enterToSend: Bool = false
     @State private var soundpack: String = AppSettings.defaultSoundpackName
     @State private var autoRefresh: Int = 0
@@ -48,6 +49,9 @@ struct SettingsView: View {
                         ForEach(EmojiRemoval.allCases) { Text($0.title).tag($0) }
                     }
                     .onChange(of: nameEmojiRemoval) { _, value in model.updateNameEmojiRemoval(value) }
+                    Stepper("Max usernames in posts: \(maxUsernamesInPost == 0 ? "All" : "\(maxUsernamesInPost)")",
+                            value: $maxUsernamesInPost, in: 0...20)
+                        .onChange(of: maxUsernamesInPost) { _, value in model.updateMaxUsernamesInPost(value) }
                     Toggle("Send posts with Return key", isOn: $enterToSend)
                         .onChange(of: enterToSend) { _, value in model.updateEnterToSend(value) }
                 }
@@ -133,6 +137,7 @@ struct SettingsView: View {
                 soundsEnabled = model.settingsSoundsEnabled
                 postEmojiRemoval = model.settingsPostEmojiRemoval
                 nameEmojiRemoval = model.settingsNameEmojiRemoval
+                maxUsernamesInPost = model.settingsMaxUsernamesInPost
                 enterToSend = model.settingsEnterToSend
                 soundpack = model.settingsSoundpack
                 autoRefresh = model.settingsAutoRefresh

@@ -34,8 +34,13 @@ public struct AppSettings: Codable, Sendable, Equatable {
     /// Which emoji to strip from displayed user/display names.
     public var nameEmojiRemoval: EmojiRemoval
 
-    /// Combined emoji-removal prefs for the presenters.
-    public var emojiPrefs: EmojiPrefs { EmojiPrefs(post: postEmojiRemoval, name: nameEmojiRemoval) }
+    /// Max leading @mentions shown in a post before truncating (0 = show all).
+    public var maxUsernamesInPost: Int
+
+    /// Combined text-display prefs for the presenters.
+    public var emojiPrefs: EmojiPrefs {
+        EmojiPrefs(post: postEmojiRemoval, name: nameEmojiRemoval, maxMentions: maxUsernamesInPost)
+    }
 
     /// What VoiceOver reads for posts and users (order + on/off).
     public var speech: SpeechSettings
@@ -75,6 +80,7 @@ public struct AppSettings: Codable, Sendable, Equatable {
         soundpack: String = AppSettings.defaultSoundpackName,
         postEmojiRemoval: EmojiRemoval = .none,
         nameEmojiRemoval: EmojiRemoval = .none,
+        maxUsernamesInPost: Int = 0,
         speech: SpeechSettings = .default,
         movement: MovementSettings = .default,
         autoRefreshSeconds: Int = 0,
@@ -92,6 +98,7 @@ public struct AppSettings: Codable, Sendable, Equatable {
         self.soundpack = soundpack
         self.postEmojiRemoval = postEmojiRemoval
         self.nameEmojiRemoval = nameEmojiRemoval
+        self.maxUsernamesInPost = maxUsernamesInPost
         self.speech = speech
         self.movement = movement
         self.autoRefreshSeconds = autoRefreshSeconds
@@ -117,6 +124,7 @@ public struct AppSettings: Codable, Sendable, Equatable {
         // (The old boolean `demojify` key is ignored if present; default off.)
         postEmojiRemoval = try container.decodeIfPresent(EmojiRemoval.self, forKey: .postEmojiRemoval) ?? .none
         nameEmojiRemoval = try container.decodeIfPresent(EmojiRemoval.self, forKey: .nameEmojiRemoval) ?? .none
+        maxUsernamesInPost = try container.decodeIfPresent(Int.self, forKey: .maxUsernamesInPost) ?? 0
         speech = (try container.decodeIfPresent(SpeechSettings.self, forKey: .speech) ?? .default).normalized()
         movement = (try container.decodeIfPresent(MovementSettings.self, forKey: .movement) ?? .default).normalized()
         autoRefreshSeconds = try container.decodeIfPresent(Int.self, forKey: .autoRefreshSeconds) ?? 0

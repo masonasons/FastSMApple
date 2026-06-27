@@ -517,6 +517,8 @@ final class AppModel {
     func updateSounds(_ value: Bool) { settings.update { $0.soundsEnabled = value } }
     func updatePostEmojiRemoval(_ value: EmojiRemoval) { settings.update { $0.postEmojiRemoval = value } }
     func updateNameEmojiRemoval(_ value: EmojiRemoval) { settings.update { $0.nameEmojiRemoval = value } }
+    var settingsMaxUsernamesInPost: Int { settings.settings.maxUsernamesInPost }
+    func updateMaxUsernamesInPost(_ value: Int) { settings.update { $0.maxUsernamesInPost = value } }
     func updateSoundpack(_ value: String) { settings.update { $0.soundpack = value } }
     var speechSettings: SpeechSettings { settings.settings.speech }
     func updateSpeech(_ value: SpeechSettings) { settings.update { $0.speech = value } }

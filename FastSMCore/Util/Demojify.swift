@@ -31,14 +31,18 @@ public enum EmojiRemoval: String, Codable, CaseIterable, Sendable, Identifiable 
     var stripsMastodon: Bool { self == .mastodon || self == .both }
 }
 
-/// Emoji-removal preferences for post text and display names.
+/// Text-display preferences threaded into the presenters: emoji removal for post
+/// text and display names, plus how many leading @mentions to keep in a post.
 public struct EmojiPrefs: Equatable, Sendable {
     public var post: EmojiRemoval
     public var name: EmojiRemoval
+    /// Max leading @mentions to show in a post before truncating (0 = show all).
+    public var maxMentions: Int
 
-    public init(post: EmojiRemoval = .none, name: EmojiRemoval = .none) {
+    public init(post: EmojiRemoval = .none, name: EmojiRemoval = .none, maxMentions: Int = 0) {
         self.post = post
         self.name = name
+        self.maxMentions = maxMentions
     }
 
     public static let none = EmojiPrefs()
@@ -46,6 +50,10 @@ public struct EmojiPrefs: Equatable, Sendable {
 
 /// Compiled once; matches Mastodon custom emoji shortcodes like `:blobcat_hug:`.
 private let customEmojiRegex = try! NSRegularExpression(pattern: ":[A-Za-z0-9_]+:")
+
+private let handlePattern = "@[A-Za-z0-9_]+(?:@[A-Za-z0-9_.\\-]+)?"
+private let leadingMentionsRegex = try! NSRegularExpression(pattern: "^(?:\(handlePattern)(?:\\s+|$))+")
+private let singleHandleRegex = try! NSRegularExpression(pattern: handlePattern)
 
 public extension String {
     /// Strip standard unicode emoji and collapse any doubled spaces.
@@ -83,5 +91,24 @@ public extension String {
 
     private func collapsedSpaces() -> String {
         replacingOccurrences(of: "  ", with: " ").trimmingCharacters(in: .whitespaces)
+    }
+
+    /// Collapse a long leading run of @mentions (e.g. a big reply chain) down to
+    /// the first `max`, replacing the rest with "and N others". `max <= 0` keeps
+    /// everything. Mentions elsewhere in the text are untouched.
+    func truncatingLeadingMentions(max: Int) -> String {
+        guard max > 0 else { return self }
+        let full = NSRange(startIndex..., in: self)
+        guard let runMatch = leadingMentionsRegex.firstMatch(in: self, range: full),
+              let runRange = Range(runMatch.range, in: self) else { return self }
+        let run = String(self[runRange])
+        let handles = singleHandleRegex
+            .matches(in: run, range: NSRange(run.startIndex..., in: run))
+            .compactMap { Range($0.range, in: run).map { String(run[$0]) } }
+        guard handles.count > max else { return self }
+        let kept = handles.prefix(max).joined(separator: " ")
+        let others = handles.count - max
+        let rest = self[runRange.upperBound...]
+        return "\(kept) and \(others) other\(others == 1 ? "" : "s") \(rest)"
     }
 }

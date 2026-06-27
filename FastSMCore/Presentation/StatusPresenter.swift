@@ -17,7 +17,7 @@ public enum StatusPresenter {
         let display = status.displayStatus
         let time = RelativeDate.compact(display.createdAt, now: now)
         let prefix = status.isBoost ? "\(status.account.bestName.strippingEmoji(emoji.name)) ♺ " : ""
-        let body = display.hasContentWarning ? "[CW] \(display.spoilerText ?? "")" : display.text.strippingEmoji(emoji.post)
+        let body = display.hasContentWarning ? "[CW] \(display.spoilerText ?? "")" : display.text.truncatingLeadingMentions(max: emoji.maxMentions).strippingEmoji(emoji.post)
         return "\(prefix)\(display.account.bestName.strippingEmoji(emoji.name)) (\(time)): \(body)"
     }
 
@@ -51,10 +51,10 @@ public enum StatusPresenter {
             guard display.hasContentWarning, let spoiler = display.spoilerText, !spoiler.isEmpty else { return nil }
             return "Content warning: \(spoiler)"
         case .text:
-            return display.text.isEmpty ? nil : display.text.strippingEmoji(emoji.post)
+            return display.text.isEmpty ? nil : display.text.truncatingLeadingMentions(max: emoji.maxMentions).strippingEmoji(emoji.post)
         case .quote:
             guard let quoted = display.quote?.status else { return nil }
-            return "Quoting \(quoted.account.bestName.strippingEmoji(emoji.name)): \(quoted.text.strippingEmoji(emoji.post))"
+            return "Quoting \(quoted.account.bestName.strippingEmoji(emoji.name)): \(quoted.text.truncatingLeadingMentions(max: emoji.maxMentions).strippingEmoji(emoji.post))"
         case .media:
             return display.mediaAttachments.isEmpty ? nil : mediaSummary(display.mediaAttachments)
         case .poll:
