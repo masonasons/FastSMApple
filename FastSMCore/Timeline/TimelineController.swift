@@ -243,7 +243,11 @@ public final class TimelineController {
                 // stale cached versions instead of being discarded.
                 let fetchedByID = Dictionary(fetched.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
                 items = items.map { fetchedByID[$0.id] ?? $0 }
-                let fresh = fetched.filter { !existingIDs.contains($0.id) }
+                // De-dupe against the CURRENT items, not the pre-await snapshot:
+                // streaming may have inserted an item while we awaited the network,
+                // and prepending it again here would duplicate it.
+                let currentIDs = Set(items.map(\.id))
+                let fresh = fetched.filter { !currentIDs.contains($0.id) }
                 newItemCount = fresh.count
                 items = fresh + items
                 // Keep paginating older from the bottom of the backlog. If we

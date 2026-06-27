@@ -29,9 +29,14 @@ private final class MockAccount: SocialAccount, @unchecked Sendable {
         me = User(id: "me", acct: "me", username: "me", displayName: "me", platform: .mastodon)
     }
 
+    /// Fires inside a fetch, to simulate something (e.g. streaming) mutating the
+    /// timeline while a refresh awaits the network.
+    var onFetch: (() -> Void)?
+
     func items(for source: TimelineSource, limit: Int, cursor: PageCursor) async throws -> TimelinePage {
         callCount += 1
         lastMaxID = cursor.maxID
+        onFetch?()
         let start: Int
         if let maxID = cursor.maxID, let idx = all.firstIndex(where: { $0.id == maxID }) {
             start = idx + 1
@@ -121,6 +126,32 @@ final class TimelineMergeTests: XCTestCase {
         account.callCount = 0
         await controller.refresh()
         XCTAssertEqual(account.callCount, 1, "should stop once caught up to known posts")
+    }
+
+    func testRefreshDoesNotDuplicateItemStreamedDuringFetch() async {
+        let user = User(id: "u", acct: "u", username: "u", displayName: "u", platform: .mastodon)
+        let statuses = (0..<5).reversed().map { i in
+            Status(id: "s\(i)", account: user, text: "\(i)",
+                   createdAt: Date(timeIntervalSince1970: Double(i) * 100), platform: .mastodon)
+        }
+        let account = MockAccount(all: statuses)
+        let controller = TimelineController(pageSize: 10)
+        controller.setTimeline(account: account, source: .mentions)
+        controller.pageCountProvider = { 1 }
+        await controller.refresh()
+
+        // A new post arrives; streaming inserts it WHILE the next refresh awaits
+        // the network, and the fetch also returns it.
+        let incoming = Status(id: "s5", account: user, text: "5",
+                              createdAt: Date(timeIntervalSince1970: 500), platform: .mastodon)
+        account.all.insert(incoming, at: 0)
+        account.onFetch = { controller.streamIn([.status(incoming)]) }
+        await controller.refresh()
+        account.onFetch = nil
+
+        let incomingID = TimelineItem.status(incoming).id
+        XCTAssertEqual(controller.items.filter { $0.id == incomingID }.count, 1,
+                       "a post streamed in mid-refresh must not be duplicated")
     }
 
     func testCacheSeededScrollbackUsesRawID() async {
