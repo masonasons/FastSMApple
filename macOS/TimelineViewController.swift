@@ -533,16 +533,42 @@ final class TimelineViewController: NSViewController {
 
     /// U: open the focused post's author's timeline, or a menu of all users in
     /// the post (author + mentions) if there's more than one.
-    @objc func openUserTimelineForSelection(_ sender: Any?) {
-        guard let account = currentAccount, let status = selectedStatus else { return }
+    /// Every user involved in the selected row: a user row's user, or — for a
+    /// post — the booster/quoter (outer), the boosted/quoted author, and every
+    /// mention across the post and its boost/quote.
+    private func usersInSelection() -> [User] {
+        guard let account = currentAccount, let item = selectedItem else { return [] }
+        if case .user(let user) = item { return [user] }
+        guard let outer = item.status else { return [] }
         var seen = Set<String>()
-        var users: [(id: String, acct: String)] = []
-        func add(_ id: String, _ acct: String) {
-            guard !id.isEmpty, !seen.contains(id) else { return }
-            seen.insert(id); users.append((id, acct))
+        var users: [User] = []
+        func addUser(_ user: User) {
+            guard !user.id.isEmpty, seen.insert(user.id).inserted else { return }
+            users.append(user)
         }
-        add(status.account.id, status.account.acct)
-        for mention in status.mentions { add(mention.id, mention.acct) }
+        func addMention(_ m: Mention) {
+            guard !m.id.isEmpty, seen.insert(m.id).inserted else { return }
+            users.append(User(id: m.id, acct: m.acct, username: m.username,
+                              displayName: m.username, url: m.url, platform: account.platform))
+        }
+        // A status contributes its author, its mentions, and (one level) the
+        // author + mentions of any post it quotes.
+        func addStatus(_ s: Status) {
+            addUser(s.account)
+            s.mentions.forEach(addMention)
+            if let quoted = s.quote?.status {
+                addUser(quoted.account)
+                quoted.mentions.forEach(addMention)
+            }
+        }
+        addStatus(outer)                                   // booster/quoter + mentions
+        if let original = outer.reblog?.status { addStatus(original) }   // boosted author + mentions
+        return users
+    }
+
+    @objc func openUserTimelineForSelection(_ sender: Any?) {
+        guard let account = currentAccount else { return }
+        let users = usersInSelection()
         guard !users.isEmpty else { return }
         if users.count == 1 {
             spawn(.userPosts(userID: users[0].id, title: "@\(users[0].acct)"), for: account)
@@ -562,27 +588,10 @@ final class TimelineViewController: NSViewController {
         spawn(.userPosts(userID: id, title: sender.title), for: account)
     }
 
-    /// ⌘U: open the focused post author's profile, or a menu of all users in the
-    /// post (author + mentions) if there's more than one. On a user row, opens
-    /// that user's profile directly.
+    /// ⌘U: open the profile of the user in the selected row, or a menu of every
+    /// user in the post (booster/quoter, boosted/quoted author, all mentions).
     @objc func openUserProfileForSelection(_ sender: Any?) {
-        guard let account = currentAccount else { return }
-        if case .user(let user)? = selectedItem {
-            presentUserInfo(user)
-            return
-        }
-        guard let status = selectedStatus else { return }
-        var seen = Set<String>()
-        var users: [User] = []
-        func add(_ user: User) {
-            guard !user.id.isEmpty, !seen.contains(user.id) else { return }
-            seen.insert(user.id); users.append(user)
-        }
-        add(status.account)
-        for mention in status.mentions {
-            add(User(id: mention.id, acct: mention.acct, username: mention.username,
-                     displayName: mention.username, url: mention.url, platform: account.platform))
-        }
+        let users = usersInSelection()
         guard !users.isEmpty else { return }
         if users.count == 1 {
             presentUserInfo(users[0])
