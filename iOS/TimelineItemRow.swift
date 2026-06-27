@@ -19,17 +19,18 @@ struct TimelineItemRow: View {
         case .notification(let notification):
             NotificationRow(notification: notification, demojify: demojify)
         case .user(let user):
-            UserRow(user: user)
+            UserRow(user: user, demojify: demojify)
         }
     }
 }
 
 struct UserRow: View {
     let user: User
+    var demojify: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(user.bestName).font(.subheadline.bold())
+            Text(user.bestName.demojified(if: demojify)).font(.subheadline.bold())
             Text("@\(user.acct)").font(.caption).foregroundStyle(.secondary)
             let bio = HTMLStripper.strip(user.note)
             if !bio.isEmpty {
@@ -38,7 +39,7 @@ struct UserRow: View {
         }
         .padding(.vertical, 2)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(UserPresenter.accessibilityLabel(for: user))
+        .accessibilityLabel(UserPresenter.accessibilityLabel(for: user, demojify: demojify))
     }
 }
 

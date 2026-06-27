@@ -18,12 +18,12 @@ struct StatusRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             if status.isBoost {
-                Text("\(status.account.bestName) boosted")
+                Text("\(status.account.bestName.demojified(if: demojify)) boosted")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
             HStack {
-                Text(display.account.bestName)
+                Text(display.account.bestName.demojified(if: demojify))
                     .font(.subheadline.bold())
                 Text("@\(display.account.acct)")
                     .font(.caption)

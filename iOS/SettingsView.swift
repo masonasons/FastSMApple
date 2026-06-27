@@ -39,7 +39,7 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 Section("General") {
-                    Toggle("Remove emojis from post text", isOn: $demojify)
+                    Toggle("Remove emojis from posts and names", isOn: $demojify)
                         .onChange(of: demojify) { _, value in model.updateDemojify(value) }
                     Toggle("Send posts with Return key", isOn: $enterToSend)
                         .onChange(of: enterToSend) { _, value in model.updateEnterToSend(value) }

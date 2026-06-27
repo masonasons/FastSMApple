@@ -24,7 +24,7 @@ public enum NotificationPresenter {
     }
 
     public static func compactLine(for notification: Notification, now: Date = Date(), demojify: Bool = false) -> String {
-        let who = notification.account.bestName
+        let who = notification.account.bestName.demojified(if: demojify)
         let phrase = actionPhrase(notification.type)
         let time = RelativeDate.compact(notification.createdAt, now: now)
         if let text = notification.status?.displayStatus.text, !text.isEmpty {
@@ -35,7 +35,7 @@ public enum NotificationPresenter {
 
     public static func accessibilityLabel(for notification: Notification, now: Date = Date(), demojify: Bool = false) -> String {
         var parts: [String] = []
-        parts.append("\(notification.account.bestName) \(actionPhrase(notification.type))")
+        parts.append("\(notification.account.bestName.demojified(if: demojify)) \(actionPhrase(notification.type))")
         if !notification.account.acct.isEmpty {
             parts.append("@\(notification.account.acct)")
         }
@@ -53,7 +53,7 @@ public extension TimelineItem {
         switch self {
         case .status(let status): return StatusPresenter.compactLine(for: status, now: now, demojify: demojify)
         case .notification(let notification): return NotificationPresenter.compactLine(for: notification, now: now, demojify: demojify)
-        case .user(let user): return UserPresenter.compactLine(for: user)
+        case .user(let user): return UserPresenter.compactLine(for: user, demojify: demojify)
         }
     }
 
@@ -62,7 +62,7 @@ public extension TimelineItem {
         switch self {
         case .status(let status): return StatusPresenter.accessibilityLabel(for: status, now: now, demojify: demojify)
         case .notification(let notification): return NotificationPresenter.accessibilityLabel(for: notification, now: now, demojify: demojify)
-        case .user(let user): return UserPresenter.accessibilityLabel(for: user)
+        case .user(let user): return UserPresenter.accessibilityLabel(for: user, demojify: demojify)
         }
     }
 }

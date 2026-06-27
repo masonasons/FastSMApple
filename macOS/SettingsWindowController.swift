@@ -127,7 +127,7 @@ final class SettingsWindowController: NSWindowController {
 
     private func buildGeneral(_ stack: NSStackView) {
         stack.addArrangedSubview(checkbox(
-            "Remove emojis and other unicode characters from post text",
+            "Remove emojis and other unicode characters from posts and display names",
             on: settings.settings.demojify, action: #selector(toggleDemojify(_:))))
         stack.addArrangedSubview(checkbox(
             "Use ⌘Return to send posts (instead of Return)",
