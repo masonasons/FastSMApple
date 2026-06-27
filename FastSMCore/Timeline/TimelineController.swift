@@ -228,7 +228,10 @@ public final class TimelineController {
                 }
                 bottomCursor = page.nextCursor
                 if !existingIDs.isEmpty, page.items.contains(where: { existingIDs.contains($0.id) }) { break }
-                if page.items.count < pageSize { break }
+                // Stop at the real end only — an empty page or no next cursor.
+                // Mastodon often returns fewer than `limit` items mid-timeline, so
+                // a short (non-empty) page must NOT be treated as the end.
+                if page.items.isEmpty { break }
                 guard let next = page.nextCursor else { break }
                 cursor = next
             }
@@ -295,7 +298,10 @@ public final class TimelineController {
                 fresh.forEach { existingIDs.insert($0.id) }
                 items.append(contentsOf: fresh)
                 bottomCursor = page.nextCursor
-                if page.items.count < pageSize { break }   // reached the end
+                // Stop at the real end only. A short (non-empty) page is normal
+                // for Mastodon mid-timeline; an empty page or missing cursor is
+                // the actual end.
+                if page.items.isEmpty { bottomCursor = nil; break }
                 guard let next = page.nextCursor else { break }
                 cursor = next
             }

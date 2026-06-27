@@ -23,6 +23,8 @@ private final class MockAccount: SocialAccount, @unchecked Sendable {
     var all: [Status]   // newest-first
     var callCount = 0
     var lastMaxID: String?
+    /// If set, return at most this many items per page regardless of `limit`.
+    var serverPageSize: Int?
 
     init(all: [Status]) {
         self.all = all
@@ -44,7 +46,9 @@ private final class MockAccount: SocialAccount, @unchecked Sendable {
             start = 0
         }
         guard start < all.count else { return TimelinePage(statuses: [], nextCursor: nil) }
-        let slice = Array(all[start..<min(start + limit, all.count)])
+        // Mastodon often returns fewer than `limit` items mid-timeline; mimic that.
+        let perPage = min(limit, serverPageSize ?? limit)
+        let slice = Array(all[start..<min(start + perPage, all.count)])
         return TimelinePage(statuses: slice, nextCursor: slice.last.map { .maxID($0.id) })
     }
 
@@ -126,6 +130,36 @@ final class TimelineMergeTests: XCTestCase {
         account.callCount = 0
         await controller.refresh()
         XCTAssertEqual(account.callCount, 1, "should stop once caught up to known posts")
+    }
+
+    private func shortPageController() -> (TimelineController, MockAccount) {
+        let user = User(id: "u", acct: "u", username: "u", displayName: "u", platform: .mastodon)
+        let statuses = (0..<20).reversed().map { i in
+            Status(id: "s\(i)", account: user, text: "\(i)",
+                   createdAt: Date(timeIntervalSince1970: Double(i) * 100), platform: .mastodon)
+        }
+        let account = MockAccount(all: statuses)
+        account.serverPageSize = 3   // server returns 3/page even though limit is 40
+        let controller = TimelineController(pageSize: 40)
+        controller.setTimeline(account: account, source: .home)
+        return (controller, account)
+    }
+
+    func testRefreshLoadsAllPagesDespiteShortPages() async {
+        let (controller, _) = shortPageController()
+        controller.pageCountProvider = { 3 }
+        await controller.refresh()
+        XCTAssertEqual(controller.items.count, 9, "3 pages × 3 items; a short page must not stop the loop")
+    }
+
+    func testScrollbackLoadsAllPagesDespiteShortPages() async {
+        let (controller, _) = shortPageController()
+        controller.pageCountProvider = { 1 }
+        await controller.refresh()
+        XCTAssertEqual(controller.items.count, 3)
+        controller.pageCountProvider = { 3 }
+        await controller.loadOlder()
+        XCTAssertEqual(controller.items.count, 12, "scrollback must load all 3 pages despite short pages")
     }
 
     func testRefreshDoesNotDuplicateItemStreamedDuringFetch() async {
