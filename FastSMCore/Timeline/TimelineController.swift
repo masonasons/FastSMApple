@@ -19,6 +19,15 @@ public final class TimelineController {
     /// position memory / restore). UI-owned; the controller just holds it.
     public var selectedID: String?
 
+    // MARK: Navigation history (undo)
+
+    /// Recent prior positions in this timeline, oldest first, for undo-navigation.
+    private var navHistory: [String] = []
+    private let maxNavHistory = 10
+    /// When true, every selection move is recorded; otherwise only "jumps" (moves
+    /// of more than one row). Set from settings.
+    public var recordsEveryNavStep = false
+
     /// Fired after `items`/`isLoading` change so non-observing UIs refresh.
     public var onChange: (() -> Void)?
     /// Fired when a load or action fails, with a user-presentable error.
@@ -38,6 +47,7 @@ public final class TimelineController {
 
     /// Record a user-initiated selection and (if syncing) push the marker.
     public func noteUserSelection(_ id: String?) {
+        recordNavigation(leaving: selectedID, arrivingAt: id)
         selectedID = id
         userMovedPosition = true
         guard saveHomeMarker != nil, let statusID = selectedStatusID, statusID != lastSyncedMarker else { return }
@@ -48,6 +58,31 @@ public final class TimelineController {
             guard let self, !Task.isCancelled else { return }
             await self.saveHomeMarker?(statusID)
         }
+    }
+
+    /// Push the position being left onto the history stack. A "jump" (selection
+    /// moving more than one row, or to/from an item not in the list) is always
+    /// recorded; single-row steps only when `recordsEveryNavStep` is on.
+    private func recordNavigation(leaving oldID: String?, arrivingAt newID: String?) {
+        guard let oldID, oldID != newID else { return }
+        let oldIndex = items.firstIndex { $0.id == oldID }
+        let newIndex = newID.flatMap { id in items.firstIndex { $0.id == id } }
+        let isJump: Bool
+        if let oldIndex, let newIndex { isJump = abs(oldIndex - newIndex) > 1 } else { isJump = true }
+        guard isJump || recordsEveryNavStep else { return }
+        guard navHistory.last != oldID else { return }
+        navHistory.append(oldID)
+        if navHistory.count > maxNavHistory { navHistory.removeFirst() }
+    }
+
+    /// Pop the most recent prior position that still exists in the timeline, for
+    /// undo-navigation. Returns the id the UI should move selection to (via a
+    /// programmatic, non-recording restore), or nil if there's nothing to undo.
+    public func undoNavigation() -> String? {
+        while let target = navHistory.popLast() {
+            if items.contains(where: { $0.id == target }) { return target }
+        }
+        return nil
     }
 
     /// On first load, move to the server-synced position if available.

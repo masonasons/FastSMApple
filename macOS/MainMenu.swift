@@ -83,6 +83,8 @@ enum MainMenu {
         timelineMenu.addItem(.separator())
         let clear = timelineMenu.addItem(withTitle: "Clear Timeline", action: #selector(TimelineViewController.clearTimeline(_:)), keyEquivalent: "\u{8}")
         clear.keyEquivalentModifierMask = [.command]
+        let undoNav = timelineMenu.addItem(withTitle: "Go Back", action: #selector(TimelineViewController.undoTimelineNavigation(_:)), keyEquivalent: "z")
+        undoNav.keyEquivalentModifierMask = [.command]
         timelineMenu.addItem(.separator())
         for number in 1...9 {
             let item = timelineMenu.addItem(withTitle: "Go to Timeline \(number)", action: #selector(MainWindowController.selectTimelineNumber(_:)), keyEquivalent: "\(number)")

@@ -577,6 +577,23 @@ final class TimelineViewController: NSViewController {
         presentUserInfo(user)
     }
 
+    /// ⌘Z: step back to the previous position in this timeline's navigation
+    /// history (e.g. after a jump landed somewhere unintended).
+    @objc func undoTimelineNavigation(_ sender: Any?) {
+        guard let target = services.selectedController?.undoNavigation(),
+              let row = items.firstIndex(where: { $0.id == target }) else {
+            services.playEarcon(.boundary)
+            announce("Nothing to go back to")
+            return
+        }
+        isRestoringSelection = true
+        defer { isRestoringSelection = false }
+        tableView.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
+        tableView.scrollRowToVisible(row)
+        services.recordSelection(target, fromUser: false)
+        focusTable()
+    }
+
     /// Whether the selected post can be edited (own post, platform supports it).
     private var canEditSelection: Bool {
         guard let account = currentAccount, let status = selectedStatus else { return false }

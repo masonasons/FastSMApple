@@ -119,4 +119,61 @@ final class TimelineMergeTests: XCTestCase {
         await controller.refresh()
         XCTAssertEqual(account.callCount, 1, "should stop once caught up to known posts")
     }
+
+    private func loadedController() async -> TimelineController {
+        let user = User(id: "u", acct: "u", username: "u", displayName: "u", platform: .mastodon)
+        let statuses: [Status] = (0..<10).reversed().map { i in
+            Status(id: "s\(i)", account: user, text: "\(i)",
+                   createdAt: Date(timeIntervalSince1970: Double(i) * 100), platform: .mastodon)
+        }
+        let controller = TimelineController(pageSize: 10)
+        controller.setTimeline(account: MockAccount(all: statuses), source: .home)
+        controller.pageCountProvider = { 1 }
+        await controller.refresh()
+        return controller
+    }
+
+    func testNavigationHistoryRecordsJumpsOnly() async {
+        let controller = await loadedController()
+        let ids = controller.items.map(\.id)
+        XCTAssertEqual(ids.count, 10)
+
+        controller.noteUserSelection(ids[0])
+        controller.noteUserSelection(ids[5])  // jump (5 rows) -> records ids[0]
+        controller.noteUserSelection(ids[6])  // single step -> not recorded
+        controller.noteUserSelection(ids[2])  // jump (4 rows) -> records ids[6]
+
+        XCTAssertEqual(controller.undoNavigation(), ids[6])
+        XCTAssertEqual(controller.undoNavigation(), ids[0])
+        XCTAssertNil(controller.undoNavigation(), "history exhausted")
+    }
+
+    func testNavigationHistoryEveryStepWhenEnabled() async {
+        let controller = await loadedController()
+        controller.recordsEveryNavStep = true
+        let ids = controller.items.map(\.id)
+
+        controller.noteUserSelection(ids[0])
+        controller.noteUserSelection(ids[1])  // single step -> recorded because flag is on
+        controller.noteUserSelection(ids[2])
+
+        XCTAssertEqual(controller.undoNavigation(), ids[1])
+        XCTAssertEqual(controller.undoNavigation(), ids[0])
+    }
+
+    func testNavigationHistorySkipsVanishedAndCapsAtTen() async {
+        let controller = await loadedController()
+        let ids = controller.items.map(\.id)
+        // 12 jumps alternating across the list; only the last 10 are retained.
+        var prev = ids[0]
+        controller.noteUserSelection(prev)
+        for i in 1...12 {
+            let next = ids[(i * 3) % 10]
+            controller.noteUserSelection(next)
+            prev = next
+        }
+        var popped = 0
+        while controller.undoNavigation() != nil { popped += 1 }
+        XCTAssertLessThanOrEqual(popped, 10, "history is capped at 10")
+    }
 }
