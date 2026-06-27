@@ -162,6 +162,21 @@ final class TimelineMergeTests: XCTestCase {
         XCTAssertEqual(controller.items.count, 12, "scrollback must load all 3 pages despite short pages")
     }
 
+    func testConcurrentLoadOlderTriggersLoadOneRound() async {
+        let (controller, _) = shortPageController()
+        controller.pageCountProvider = { 1 }
+        await controller.refresh()
+        let afterRefresh = controller.items.count
+        controller.pageCountProvider = { 3 }
+        // The bottom rows fire loadOlder near-simultaneously; only ONE round of
+        // fetchPages pages must run, not a coalesced second round (the 800-not-400 bug).
+        async let a: Void = controller.loadOlder()
+        async let b: Void = controller.loadOlder()
+        _ = await (a, b)
+        XCTAssertEqual(controller.items.count, afterRefresh + 9,
+                       "concurrent triggers must not double-load")
+    }
+
     func testRefreshDoesNotDuplicateItemStreamedDuringFetch() async {
         let user = User(id: "u", acct: "u", username: "u", displayName: "u", platform: .mastodon)
         let statuses = (0..<5).reversed().map { i in
