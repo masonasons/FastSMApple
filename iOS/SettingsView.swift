@@ -64,7 +64,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Audio")
                 } footer: {
-                    Text("Add soundpack folders to the app's soundpacks folder (via Files), then pick one here.")
+                    Text("In the Files app, open On My iPhone → FastSM → Soundpacks and drop a soundpack folder in, then pick it here.")
                 }
 
                 Section {

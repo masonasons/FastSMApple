@@ -92,6 +92,7 @@ final class AppModel {
     }
 
     init() {
+        _ = AppModel.soundpacksDirectory()   // create the Files-visible folder up front
         applyCacheLimit()
         applySounds()
         accountStore.onChange = { [weak self] in self?.accountsVersion += 1 }
@@ -527,11 +528,20 @@ final class AppModel {
 
     static func soundpacksDirectory() -> URL? {
         let fm = FileManager.default
-        guard let base = try? fm.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true) else {
+        // Documents so it shows up in Files (the "FastSM" folder under On My
+        // iPhone) — UIFileSharingEnabled + LSSupportsOpeningDocumentsInPlace make
+        // it user-accessible to drop soundpack folders into.
+        guard let base = try? fm.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: true) else {
             return nil
         }
-        let dir = base.appendingPathComponent("FastSM/soundpacks", isDirectory: true)
+        let dir = base.appendingPathComponent("Soundpacks", isDirectory: true)
+        let isNew = !fm.fileExists(atPath: dir.path)
         try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
+        if isNew {
+            let readme = dir.appendingPathComponent("Read Me.txt")
+            let text = "Put soundpack folders here.\n\nEach soundpack is a folder of sound files (e.g. home.ogg, mention.ogg, like.ogg). After adding one, pick it in FastSM → Settings → Audio → Soundpack.\n"
+            try? text.data(using: .utf8)?.write(to: readme)
+        }
         return dir
     }
 
