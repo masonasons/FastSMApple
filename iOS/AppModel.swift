@@ -536,8 +536,9 @@ final class AppModel {
     // MARK: Links & media
 
     var linkChoices: [PostLink]?
-    var mediaChoices: [PostLink]?
+    var mediaChoices: [MediaAttachment]?
     var mediaToPlay: PlayableMedia?
+    var mediaToView: MediaGallery?
 
     var availableLists: [TimelineList] = []
     var availableFeeds: [TimelineList] = []
@@ -587,7 +588,7 @@ final class AppModel {
     }
 
     func canOpenLinks(_ status: Status) -> Bool { !PostLinks.links(for: status).isEmpty }
-    func canPlayMedia(_ status: Status) -> Bool { !PostLinks.playableMedia(for: status).isEmpty }
+    func canViewMedia(_ status: Status) -> Bool { !PostLinks.viewableMedia(for: status).isEmpty }
 
     func openLinks(for status: Status) {
         let links = PostLinks.links(for: status)
@@ -596,14 +597,21 @@ final class AppModel {
     }
 
     func playMedia(for status: Status) {
-        let media = PostLinks.playableMedia(for: status)
+        let media = PostLinks.viewableMedia(for: status)
         guard !media.isEmpty else { sound.play(.error); return }
-        if media.count == 1, let url = media[0].url {
+        if media.count == 1 { presentMedia(media[0], among: media); return }
+        mediaChoices = media
+    }
+
+    /// Route a chosen attachment: images open the image viewer (paging all the
+    /// post's images), video/audio open the player.
+    func presentMedia(_ item: MediaAttachment, among media: [MediaAttachment]) {
+        if item.type == .image {
+            let images = media.filter { $0.type == .image }
+            let start = images.firstIndex(where: { $0.id == item.id }) ?? 0
+            mediaToView = MediaGallery(images: images, startIndex: start)
+        } else if let url = item.url {
             mediaToPlay = PlayableMedia(url: url)
-            return
-        }
-        mediaChoices = media.compactMap { m in
-            m.url.map { PostLink(title: (m.description?.isEmpty == false ? m.description! : m.type.rawValue.capitalized), url: $0) }
         }
     }
 
@@ -655,6 +663,13 @@ struct ComposeRequest: Identifiable {
 struct PlayableMedia: Identifiable {
     let id = UUID()
     let url: URL
+}
+
+/// A set of images to show in the image viewer, starting at a given one.
+struct MediaGallery: Identifiable {
+    let id = UUID()
+    let images: [MediaAttachment]
+    let startIndex: Int
 }
 
 extension Array {

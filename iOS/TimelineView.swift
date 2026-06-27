@@ -115,15 +115,23 @@ struct TimelinePagerView: View {
             .sheet(item: $model.mediaToPlay) { media in
                 MediaPlayerSheet(url: media.url)
             }
+            .sheet(item: $model.mediaToView) { gallery in
+                ImageViewerSheet(images: gallery.images, startIndex: gallery.startIndex)
+            }
             .confirmationDialog("Open Link", isPresented: linksPresented, titleVisibility: .visible) {
                 ForEach(model.linkChoices ?? []) { link in
                     Button(link.title) { openURL(link.url); model.linkChoices = nil }
                 }
                 Button("Cancel", role: .cancel) { model.linkChoices = nil }
             }
-            .confirmationDialog("Play Media", isPresented: mediaPresented, titleVisibility: .visible) {
+            .confirmationDialog("View Media", isPresented: mediaPresented, titleVisibility: .visible) {
                 ForEach(model.mediaChoices ?? []) { item in
-                    Button(item.title) { model.mediaToPlay = PlayableMedia(url: item.url); model.mediaChoices = nil }
+                    let title = item.description?.isEmpty == false ? item.description! : item.type.rawValue.capitalized
+                    Button(title) {
+                        let all = model.mediaChoices ?? []
+                        model.mediaChoices = nil
+                        model.presentMedia(item, among: all)
+                    }
                 }
                 Button("Cancel", role: .cancel) { model.mediaChoices = nil }
             }
@@ -434,6 +442,47 @@ struct TimelinePageView: View {
     }
 }
 
+/// Image viewer: pages through the post's images, showing alt text, with
+/// pinch-to-zoom on each image. VoiceOver reads the alt text per page.
+struct ImageViewerSheet: View {
+    let images: [MediaAttachment]
+    let startIndex: Int
+    @Environment(\.dismiss) private var dismiss
+    @State private var selection = 0
+
+    var body: some View {
+        NavigationStack {
+            TabView(selection: $selection) {
+                ForEach(Array(images.enumerated()), id: \.offset) { idx, media in
+                    VStack(spacing: 8) {
+                        if let url = media.url {
+                            AsyncImage(url: url) { image in
+                                image.resizable().scaledToFit()
+                            } placeholder: {
+                                ProgressView()
+                            }
+                        }
+                        if let alt = media.description, !alt.isEmpty {
+                            Text(alt).font(.footnote).foregroundStyle(.secondary)
+                                .padding(.horizontal)
+                        }
+                    }
+                    .tag(idx)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel(media.description?.isEmpty == false ? media.description! : "Image \(idx + 1)")
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: images.count > 1 ? .automatic : .never))
+            .navigationTitle(images.count > 1 ? "Image \(selection + 1) of \(images.count)" : "Image")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
+            }
+            .onAppear { selection = min(max(startIndex, 0), max(images.count - 1, 0)) }
+        }
+    }
+}
+
 /// A simple full-screen-ish player for a post's video/audio.
 struct MediaPlayerSheet: View {
     @Environment(\.dismiss) private var dismiss
@@ -572,18 +621,19 @@ struct PostActions: View {
             if let url = user.url { list.append(Action(title: "Open in Browser") { openURL(url) }) }
         default:
             if let status = item.actionableStatus {
+                // Open Link / View Media first when applicable.
+                if model.canOpenLinks(status) {
+                    list.append(Action(title: "Open Link") { model.openLinks(for: status) })
+                }
+                if model.canViewMedia(status) {
+                    list.append(Action(title: "View Media") { model.playMedia(for: status) })
+                }
                 list.append(Action(title: "Reply") { model.compose(replyTo: status) })
                 list.append(Action(title: status.boosted ? "Unboost" : "Boost") { Task { await model.toggleBoost(key: ref.key, index: index) } })
                 list.append(Action(title: status.favourited ? "Unfavorite" : "Favorite") { Task { await model.toggleFavorite(key: ref.key, index: index) } })
                 list.append(Action(title: "Quote") { model.compose(quoting: status) })
                 if model.canEdit(status, in: ref) {
                     list.append(Action(title: "Edit") { model.composeRequest = ComposeRequest(editing: status) })
-                }
-                if model.canOpenLinks(status) {
-                    list.append(Action(title: "Open Link") { model.openLinks(for: status) })
-                }
-                if model.canPlayMedia(status) {
-                    list.append(Action(title: "Play Media") { model.playMedia(for: status) })
                 }
                 list.append(Action(title: "View Thread") { model.spawn(.thread(statusID: status.id, title: "Thread: \(status.account.bestName)"), for: ref.account) })
                 list.append(Action(title: "View Author") { model.spawn(.userPosts(userID: status.account.id, title: "@\(status.account.acct)"), for: ref.account) })
