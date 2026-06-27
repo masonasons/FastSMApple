@@ -52,6 +52,16 @@ struct SettingsView: View {
                     NavigationLink("Movement units (rotors)") { MovementSettingsView() }
                 }
 
+                Section("Notifications") {
+                    Text(model.pushStatus).font(.footnote)
+                    if let endpoint = PushManager.shared.endpoint()?.absoluteString {
+                        Text(endpoint).font(.caption2).textSelection(.enabled)
+                    } else {
+                        Text("No device token yet").font(.caption2).foregroundStyle(.secondary)
+                    }
+                    Button("Re-register push") { model.enablePush() }
+                }
+
                 Section {
                     Toggle("Play sounds", isOn: $soundsEnabled)
                         .onChange(of: soundsEnabled) { _, value in model.updateSounds(value) }
