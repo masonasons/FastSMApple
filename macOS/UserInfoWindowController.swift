@@ -23,7 +23,7 @@ final class UserInfoWindowController: NSWindowController {
         self.user = user
         self.onAction = onAction
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 420, height: 240),
+            contentRect: NSRect(x: 0, y: 0, width: 420, height: 300),
             styleMask: [.titled],
             backing: .buffered,
             defer: false
@@ -56,10 +56,26 @@ final class UserInfoWindowController: NSWindowController {
             stack.bottomAnchor.constraint(equalTo: content.bottomAnchor),
         ])
 
-        let info = NSTextField(wrappingLabelWithString: UserPresenter.accessibilityLabel(for: user))
-        info.translatesAutoresizingMaskIntoConstraints = false
-        info.widthAnchor.constraint(equalToConstant: 380).isActive = true
-        stack.addArrangedSubview(info)
+        // The bio in a read-only, selectable text view so VoiceOver can navigate
+        // it and the text can be copied.
+        let bioScroll = NSTextView.scrollableTextView()
+        bioScroll.translatesAutoresizingMaskIntoConstraints = false
+        bioScroll.borderType = .bezelBorder
+        bioScroll.hasVerticalScroller = true
+        if let bioView = bioScroll.documentView as? NSTextView {
+            bioView.isEditable = false
+            bioView.isSelectable = true
+            bioView.drawsBackground = true
+            bioView.textContainerInset = NSSize(width: 6, height: 6)
+            let bio = HTMLStripper.strip(user.note)
+            bioView.string = bio.isEmpty ? "No bio." : bio
+            bioView.setAccessibilityLabel("Bio")
+        }
+        stack.addArrangedSubview(bioScroll)
+        NSLayoutConstraint.activate([
+            bioScroll.widthAnchor.constraint(equalToConstant: 380),
+            bioScroll.heightAnchor.constraint(equalToConstant: 120),
+        ])
 
         for (title, action) in [("View Posts", UserInfoAction.viewPosts), ("Followers", .followers), ("Following", .following)] {
             let button = NSButton(title: title, target: self, action: #selector(chooseAction(_:)))
