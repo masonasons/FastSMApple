@@ -32,6 +32,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
 
+    func applicationWillTerminate(_ notification: Foundation.Notification) {
+        services.positions.flush()   // persist the latest position before quitting
+    }
+
     private func bootstrap() async {
         await services.accountStore.load()
         if services.accountStore.isEmpty {

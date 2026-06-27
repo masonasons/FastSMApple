@@ -159,6 +159,10 @@ final class AppModel {
         positions.setPosition(id, forKey: key)
     }
 
+    /// Persist any pending position changes right away (e.g. on backgrounding),
+    /// so a quick close doesn't lose your spot.
+    func flush() { positions.flush() }
+
     private func makeController(for ref: TimelineRef) -> TimelineController {
         let controller = TimelineController(cache: cache)
         controller.pageCountProvider = { [weak self] in self?.settings.settings.fetchPages ?? 1 }

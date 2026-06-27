@@ -12,12 +12,17 @@ import FastSMCore
 @main
 struct FastSMApp: App {
     @State private var model = AppModel()
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
             RootView()
                 .environment(model)
                 .task { await model.bootstrap() }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            // Flush the saved position when leaving the foreground.
+            if phase != .active { model.flush() }
         }
     }
 }

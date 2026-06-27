@@ -90,6 +90,14 @@ public final class PositionStore {
         }
     }
 
+    /// Write any pending changes immediately — call when the app is about to be
+    /// backgrounded so a quick close doesn't drop the latest position.
+    public func flush() {
+        saveTask?.cancel()
+        saveTask = nil
+        save()
+    }
+
     private func save() {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
