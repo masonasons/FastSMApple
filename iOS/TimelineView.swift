@@ -81,6 +81,13 @@ struct TimelinePagerView: View {
                     Menu { moreMenu } label: { Label("More", systemImage: "ellipsis.circle") }
                         .accessibilityActions { accountSwitchActions }
                 }
+                if model.selectedRef?.source.isDismissable == true, let key = model.selectedKey {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button(role: .destructive) { model.closeTimeline(key: key) } label: {
+                            Label("Close Tab", systemImage: "xmark.circle")
+                        }
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { model.composeRequest = ComposeRequest() } label: { Label("New Post", systemImage: "square.and.pencil") }
                 }
