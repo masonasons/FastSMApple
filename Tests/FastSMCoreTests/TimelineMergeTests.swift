@@ -16,11 +16,13 @@ private final class MockAccount: SocialAccount, @unchecked Sendable {
     let me: User
     let maxChars = 500
     let features = PlatformFeatures()
+    var supportsIDPagination: Bool { true }
     var defaultTimelines: [TimelineSource] { [.home] }
     var supportedTimelines: [TimelineSource] { [.home] }
 
     var all: [Status]   // newest-first
     var callCount = 0
+    var lastMaxID: String?
 
     init(all: [Status]) {
         self.all = all
@@ -29,6 +31,7 @@ private final class MockAccount: SocialAccount, @unchecked Sendable {
 
     func items(for source: TimelineSource, limit: Int, cursor: PageCursor) async throws -> TimelinePage {
         callCount += 1
+        lastMaxID = cursor.maxID
         let start: Int
         if let maxID = cursor.maxID, let idx = all.firstIndex(where: { $0.id == maxID }) {
             start = idx + 1
@@ -118,6 +121,31 @@ final class TimelineMergeTests: XCTestCase {
         account.callCount = 0
         await controller.refresh()
         XCTAssertEqual(account.callCount, 1, "should stop once caught up to known posts")
+    }
+
+    func testCacheSeededScrollbackUsesRawID() async {
+        let dir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent(UUID().uuidString)
+        let cache = TimelineCache(maxEntries: 200, debounceSeconds: 0, directory: dir)
+        let user = User(id: "u", acct: "u", username: "u", displayName: "u", platform: .mastodon)
+        let statuses = (0..<6).reversed().map { i in
+            Status(id: "s\(i)", account: user, text: "\(i)",
+                   createdAt: Date(timeIntervalSince1970: Double(i) * 100), platform: .mastodon)
+        }
+        let account = MockAccount(all: statuses)
+        let items = statuses.map { TimelineItem.status($0) }   // s5 (newest) … s0 (oldest)
+        await cache.save(items, key: "\(account.accountKey):\(TimelineSource.home.cacheKey)")
+
+        let controller = TimelineController(pageSize: 10, cache: cache)
+        controller.setTimeline(account: account, source: .home)
+        await controller.loadCached()
+        XCTAssertFalse(controller.items.isEmpty, "cache should have loaded")
+
+        await controller.loadOlder()
+        // The cursor must be the RAW status id ("s0"), not the prefixed
+        // TimelineItem id ("s:s0") that broke scrollback from cache.
+        XCTAssertEqual(account.lastMaxID, "s0")
+        XCTAssertFalse(account.lastMaxID?.contains(":") ?? false,
+                       "max_id must not be a prefixed TimelineItem id")
     }
 
     private func loadedController() async -> TimelineController {

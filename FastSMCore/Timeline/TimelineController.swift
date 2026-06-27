@@ -161,13 +161,31 @@ public final class TimelineController {
         guard !cached.isEmpty, items.isEmpty else { return }
         items = cached
         // Seed the cursor BELOW the cached backlog so scrollback fetches older
-        // posts, not the pages we already have. (Mastodon paginates by item id;
+        // posts, not the pages we already have. (Mastodon paginates by raw id;
         // Bluesky's opaque cursor can't be reconstructed from items, so it falls
         // back to refresh-driven seeding.)
-        if account?.supportsIDPagination == true, source.paginatesByItemID, let oldest = cached.last {
-            nextCursor = .maxID(oldest.id)
+        if account?.supportsIDPagination == true, source.paginatesByItemID,
+           let oldest = cached.last, let rawID = paginationID(of: oldest) {
+            nextCursor = .maxID(rawID)
         }
         onChange?()
+    }
+
+    /// The RAW api id to paginate before, for cache-seeding the scrollback cursor.
+    /// `TimelineItem.id` is prefixed ("s:"/"n:"), so it can't be used directly.
+    /// Mentions display statuses but paginate by NOTIFICATION id, which a cached
+    /// status doesn't carry — so they return nil and let refresh seed the cursor.
+    private func paginationID(of item: TimelineItem) -> String? {
+        switch source {
+        case .notifications:
+            if case .notification(let notification) = item { return notification.id }
+            return nil
+        case .mentions:
+            return nil
+        default:
+            if case .status(let status) = item { return status.id }
+            return nil
+        }
     }
 
     /// Keep chronological feeds strictly newest-first so the cache cap drops the
