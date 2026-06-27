@@ -318,6 +318,7 @@ final class TimelineViewController: NSViewController {
     }
 
     private var mediaPlayer: MediaPlayerWindowController?
+    private var imageViewer: ImageViewerWindowController?
 
     /// ⌘Return: pick a link from the post (text links, card, media, post URL).
     @objc func openLinksForSelection(_ sender: Any?) {
@@ -338,27 +339,47 @@ final class TimelineViewController: NSViewController {
     }
 
     /// Shift+Return: play the post's video/audio (a menu if there's more than one).
+    /// Shift+Return: view/play the post's media. Images open the image viewer
+    /// (navigable when there's more than one); video/audio open the player. A post
+    /// with several attachments shows a chooser first.
     @objc func playMediaForSelection(_ sender: Any?) {
         guard let status = selectedStatus else { return }
-        let media = PostLinks.playableMedia(for: status)
+        let media = PostLinks.viewableMedia(for: status)
         guard !media.isEmpty else { services.sound.play(.error); return }
-        if media.count == 1, let url = media[0].url {
-            play(url: url, title: media[0].description ?? "Media")
+        if media.count == 1 {
+            openMedia(media[0], in: status)
             return
         }
-        let menu = NSMenu(title: "Play Media")
+        let menu = NSMenu(title: "View Media")
         for (index, item) in media.enumerated() {
-            guard let url = item.url else { continue }
             let title = item.description?.isEmpty == false ? item.description! : "\(item.type.rawValue.capitalized) \(index + 1)"
-            let menuItem = menu.addItem(withTitle: title, action: #selector(playMediaItem(_:)), keyEquivalent: "")
+            let menuItem = menu.addItem(withTitle: title, action: #selector(viewMediaItem(_:)), keyEquivalent: "")
             menuItem.target = self
-            menuItem.representedObject = url
+            menuItem.tag = index
         }
         popUpAtSelectedRow(menu)
     }
 
-    @objc private func playMediaItem(_ sender: NSMenuItem) {
-        if let url = sender.representedObject as? URL { play(url: url, title: sender.title) }
+    @objc private func viewMediaItem(_ sender: NSMenuItem) {
+        guard let status = selectedStatus else { return }
+        let media = PostLinks.viewableMedia(for: status)
+        guard media.indices.contains(sender.tag) else { return }
+        openMedia(media[sender.tag], in: status)
+    }
+
+    private func openMedia(_ item: MediaAttachment, in status: Status) {
+        guard let url = item.url else { return }
+        if item.type == .image {
+            // Open the viewer with ALL the post's images so they can be paged.
+            let images = PostLinks.images(for: status)
+            let start = images.firstIndex(where: { $0.id == item.id }) ?? 0
+            let controller = ImageViewerWindowController(media: images, startIndex: start)
+            controller.onClose = { [weak self] in self?.imageViewer = nil }
+            imageViewer = controller
+            controller.show()
+        } else {
+            play(url: url, title: item.description ?? "Media")
+        }
     }
 
     private func play(url: URL, title: String) {
@@ -496,7 +517,7 @@ final class TimelineViewController: NSViewController {
             if canEditSelection { add("Edit", #selector(editSelection(_:))) }
             menu.addItem(.separator())
             if !PostLinks.links(for: status).isEmpty { add("Open Link…", #selector(openLinksForSelection(_:))) }
-            if !PostLinks.playableMedia(for: status).isEmpty { add("Play Media…", #selector(playMediaForSelection(_:))) }
+            if !PostLinks.viewableMedia(for: status).isEmpty { add("View Media…", #selector(playMediaForSelection(_:))) }
             add("View Thread", #selector(viewThread(_:)))
             add("View Author", #selector(viewAuthorOfSelection(_:)))
             add("Post Info…", #selector(showPostInfo(_:)))

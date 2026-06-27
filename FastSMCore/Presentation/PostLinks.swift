@@ -70,6 +70,18 @@ public enum PostLinks {
         }
     }
 
+    /// Image attachments (for the image viewer).
+    public static func images(for status: Status) -> [MediaAttachment] {
+        status.displayStatus.mediaAttachments.filter { $0.type == .image && $0.url != nil }
+    }
+
+    /// Everything viewable: images plus playable media.
+    public static func viewableMedia(for status: Status) -> [MediaAttachment] {
+        status.displayStatus.mediaAttachments.filter {
+            $0.url != nil && ($0.type == .image || $0.type == .video || $0.type == .gifv || $0.type == .audio)
+        }
+    }
+
     /// Extract `(visible text, href)` pairs from HTML, skipping mention/hashtag
     /// anchors (those aren't "links" a user wants to open externally).
     private static func anchors(in html: String) -> [(String, URL)] {
