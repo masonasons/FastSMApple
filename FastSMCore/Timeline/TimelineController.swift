@@ -1,0 +1,334 @@
+//
+//  TimelineController.swift
+//  FastSMCore
+//
+//  Loads and paginates the selected timeline for an account and applies
+//  optimistic boost/favorite toggles. Content is a list of `TimelineItem`, so
+//  the same pipeline serves status timelines (home/local/federated/mentions/
+//  conversations) and the notifications timeline. UI-framework agnostic: AppKit
+//  observes via `onChange`; SwiftUI wraps it in an @Observable model.
+//
+
+import Foundation
+
+@MainActor
+public final class TimelineController {
+    public private(set) var items: [TimelineItem] = []
+    public private(set) var isLoading = false
+    /// The id of the item the user last had selected in this timeline (for
+    /// position memory / restore). UI-owned; the controller just holds it.
+    public var selectedID: String?
+
+    /// Fired after `items`/`isLoading` change so non-observing UIs refresh.
+    public var onChange: (() -> Void)?
+    /// Fired when a load or action fails, with a user-presentable error.
+    public var onError: ((Error) -> Void)?
+    /// Home-position sync (Mastodon markers): the app wires these for the home
+    /// timeline when the setting is on. nil = no sync.
+    public var fetchHomeMarker: (() async -> String?)?
+    public var saveHomeMarker: ((String) async -> Void)?
+    private var userMovedPosition = false
+    private var lastSyncedMarker: String?
+    private var markerSaveTask: Task<Void, Never>?
+
+    /// The status id of the currently-selected row (for marker sync).
+    private var selectedStatusID: String? {
+        items.first(where: { $0.id == selectedID })?.actionableStatus?.id
+    }
+
+    /// Record a user-initiated selection and (if syncing) push the marker.
+    public func noteUserSelection(_ id: String?) {
+        selectedID = id
+        userMovedPosition = true
+        guard saveHomeMarker != nil, let statusID = selectedStatusID, statusID != lastSyncedMarker else { return }
+        lastSyncedMarker = statusID
+        markerSaveTask?.cancel()
+        markerSaveTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            guard let self, !Task.isCancelled else { return }
+            await self.saveHomeMarker?(statusID)
+        }
+    }
+
+    /// On first load, move to the server-synced position if available.
+    /// Move to the server-synced position, unless the user has moved the position
+    /// themselves this session. Runs after every refresh (like the Windows app).
+    public func applyHomeMarkerIfNeeded() async {
+        guard let fetchHomeMarker, !userMovedPosition else { return }
+        guard let markerID = await fetchHomeMarker(),
+              let item = items.first(where: { $0.actionableStatus?.id == markerID }) else { return }
+        lastSyncedMarker = markerID
+        if selectedID != item.id {
+            selectedID = item.id
+            onChange?()
+        }
+    }
+
+    /// Fired (with the count) when a refresh merges new posts into an already-
+    /// populated timeline — used to chime the timeline's "new posts" sound. Not
+    /// fired on the initial/cold load.
+    public var onReceivedNewItems: ((Int) -> Void)?
+
+    private var account: (any SocialAccount)?
+    private var source: TimelineSource = .home
+    private var nextCursor: PageCursor?
+    private let pageSize: Int
+    private let cache: TimelineCache?
+
+    /// Number of pages to fetch per refresh. Supplied by the app from settings.
+    public var pageCountProvider: () -> Int = { 1 }
+
+    public init(pageSize: Int = 40, cache: TimelineCache? = nil) {
+        self.pageSize = pageSize
+        self.cache = cache
+    }
+
+    public var account_: (any SocialAccount)? { account }
+
+    /// Cache key namespaced per account *and* source. Every timeline is cached;
+    /// closed (dismissed) timelines have their cache removed by the caller.
+    private var cacheKey: String? {
+        guard let account else { return nil }
+        return "\(account.accountKey):\(source.cacheKey)"
+    }
+
+    /// Point the controller at an account + source and clear content.
+    public func setTimeline(account: (any SocialAccount)?, source: TimelineSource) {
+        self.account = account
+        self.source = source
+        items = []
+        nextCursor = nil
+        onChange?()
+    }
+
+    /// Convenience for callers that only use the home timeline (e.g. iOS).
+    public func setAccount(_ account: (any SocialAccount)?) {
+        setTimeline(account: account, source: .home)
+    }
+
+    /// Empty the current timeline's items and delete its cache. The account and
+    /// source are kept, so a refresh reloads it.
+    public func clear() async {
+        items = []
+        nextCursor = nil
+        onChange?()
+        if let cache, let cacheKey {
+            await cache.remove(key: cacheKey)
+        }
+    }
+
+    /// Show cached items immediately (instant startup) before the network load.
+    public func loadCached() async {
+        guard let cache, let cacheKey, items.isEmpty else { return }
+        let cached = await cache.load(key: cacheKey)
+        guard !cached.isEmpty, items.isEmpty else { return }
+        items = cached
+        onChange?()
+    }
+
+    /// Keep chronological feeds strictly newest-first so the cache cap drops the
+    /// oldest, not the newest. Threads / user lists keep their natural order.
+    private func normalizeOrder() {
+        guard source.isTimeOrdered else { return }
+        items.sort { ($0.sortDate ?? .distantPast) > ($1.sortDate ?? .distantPast) }
+    }
+
+    private func persistToCache() {
+        guard let cache, let cacheKey else { return }
+        let snapshot = items
+        Task { await cache.save(snapshot, key: cacheKey) }
+    }
+
+    /// Fetch the newest page and merge it into the existing backlog: brand-new
+    /// posts are prepended on top, and the cached history below is preserved
+    /// (rather than collapsing the timeline back to a single page on every
+    /// launch/refresh).
+    public func refresh() async {
+        guard let account else { return }
+        setLoading(true)
+        defer { setLoading(false) }
+        do {
+            // Fetch up to N pages from the top, following the cursor — but stop
+            // early once we reach posts we already have (caught up, no gap) or the
+            // server returns a short page (end of timeline). This avoids wasting
+            // API calls when there's little new to fetch.
+            let existingIDs = Set(items.map(\.id))
+            let pageCount = max(1, pageCountProvider())
+            var fetched: [TimelineItem] = []
+            var seen = Set<String>()
+            var cursor: PageCursor = .start
+            var bottomCursor: PageCursor?
+            for _ in 0..<pageCount {
+                let page = try await account.items(for: source, limit: pageSize, cursor: cursor)
+                for item in page.items where !seen.contains(item.id) {
+                    seen.insert(item.id)
+                    fetched.append(item)
+                }
+                bottomCursor = page.nextCursor
+                if !existingIDs.isEmpty, page.items.contains(where: { existingIDs.contains($0.id) }) { break }
+                if page.items.count < pageSize { break }
+                guard let next = page.nextCursor else { break }
+                cursor = next
+            }
+
+            var newItemCount = 0
+            if items.isEmpty {
+                items = fetched
+                nextCursor = bottomCursor
+            } else {
+                // Update posts we already have with the freshly fetched copy, so
+                // re-fetched data (counts, source app, fav/boost state) replaces
+                // stale cached versions instead of being discarded.
+                let fetchedByID = Dictionary(fetched.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+                items = items.map { fetchedByID[$0.id] ?? $0 }
+                let fresh = fetched.filter { !existingIDs.contains($0.id) }
+                newItemCount = fresh.count
+                items = fresh + items
+                // Keep paginating older from the bottom of the backlog. If we
+                // launched from cache with no cursor yet, seed one (loadOlder
+                // de-dupes, so any re-fetched overlap is harmless).
+                if nextCursor == nil { nextCursor = bottomCursor }
+            }
+            normalizeOrder()
+            onChange?()
+            persistToCache()
+            if newItemCount > 0 { onReceivedNewItems?(newItemCount) }
+            await applyHomeMarkerIfNeeded()
+        } catch {
+            onError?(error)
+        }
+    }
+
+    /// Append older posts. Fetches up to `fetchPages` pages per scrollback so the
+    /// page-count setting applies to loading history, not just refresh.
+    public func loadOlder() async {
+        guard let account, var cursor = nextCursor, !isLoading else { return }
+        setLoading(true)
+        defer { setLoading(false) }
+        do {
+            let pageCount = max(1, pageCountProvider())
+            var existingIDs = Set(items.map(\.id))
+            var bottomCursor: PageCursor? = cursor
+            for _ in 0..<pageCount {
+                let page = try await account.items(for: source, limit: pageSize, cursor: cursor)
+                let fresh = page.items.filter { !existingIDs.contains($0.id) }
+                fresh.forEach { existingIDs.insert($0.id) }
+                items.append(contentsOf: fresh)
+                bottomCursor = page.nextCursor
+                if page.items.count < pageSize { break }   // reached the end
+                guard let next = page.nextCursor else { break }
+                cursor = next
+            }
+            nextCursor = bottomCursor
+            normalizeOrder()
+            onChange?()
+            persistToCache()
+        } catch {
+            onError?(error)
+        }
+    }
+
+    // MARK: Actions
+
+    public func toggleFavorite(at index: Int) async {
+        await toggle(
+            at: index,
+            current: { $0.actionableStatus?.favourited ?? false },
+            optimistic: { $0.setFavourited($1) },
+            perform: { account, id, value in
+                if value { try await account.favorite(id) } else { try await account.unfavorite(id) }
+            }
+        )
+    }
+
+    public func toggleBoost(at index: Int) async {
+        await toggle(
+            at: index,
+            current: { $0.actionableStatus?.boosted ?? false },
+            optimistic: { $0.setBoosted($1) },
+            perform: { account, id, value in
+                if value { try await account.boost(id) } else { try await account.unboost(id) }
+            }
+        )
+    }
+
+    @discardableResult
+    public func post(_ draft: PostDraft) async throws -> Status? {
+        guard let account else { throw PlatformError.notAuthenticated }
+        let status = try await account.post(draft)
+        // Surface our own new top-level post immediately on status timelines.
+        // (Scheduled posts return nil — nothing to insert yet.)
+        if let status, draft.replyToID == nil, !source.isNotificationTimeline {
+            items.insert(.status(status), at: 0)
+            onChange?()
+        }
+        return status
+    }
+
+    /// Insert items pushed in real time by a stream: prepend new ones, keep order,
+    /// persist, and chime the timeline's sound.
+    public func streamIn(_ newItems: [TimelineItem]) {
+        let existing = Set(items.map(\.id))
+        let fresh = newItems.filter { !existing.contains($0.id) }
+        guard !fresh.isEmpty else { return }
+        items = fresh + items
+        normalizeOrder()
+        onChange?()
+        persistToCache()
+        onReceivedNewItems?(fresh.count)
+    }
+
+    /// The actionable status at `index`, resolved to the local copy if it came
+    /// from a remote instance (so it can be replied to / quoted).
+    public func resolvedStatus(at index: Int) async -> Status? {
+        guard let account, items.indices.contains(index),
+              let status = items[index].actionableStatus else { return nil }
+        return (try? await account.resolve(status)) ?? status
+    }
+
+    @discardableResult
+    public func editPost(_ id: String, draft: PostDraft) async throws -> Status? {
+        guard let account else { throw PlatformError.notAuthenticated }
+        let updated = try await account.editPost(id, draft: draft)
+        // Replace the edited post in place wherever it appears.
+        if let updated, let index = items.firstIndex(where: { $0.actionableStatus?.id == id }) {
+            items[index] = .status(updated)
+            onChange?()
+            persistToCache()
+        }
+        return updated
+    }
+
+    // MARK: Internals
+
+    private func toggle(
+        at index: Int,
+        current: (TimelineItem) -> Bool,
+        optimistic: (inout TimelineItem, Bool) -> Void,
+        perform: (any SocialAccount, String, Bool) async throws -> Void
+    ) async {
+        guard let account, items.indices.contains(index),
+              let actionable = items[index].actionableStatus else { return }
+        let newValue = !current(items[index])
+
+        optimistic(&items[index], newValue)
+        onChange?()
+
+        do {
+            // Remote-instance posts need resolving to a local id first.
+            let targetID = (try await account.resolve(actionable)).id
+            try await perform(account, targetID, newValue)
+        } catch {
+            if items.indices.contains(index) {
+                optimistic(&items[index], !newValue)
+                onChange?()
+            }
+            onError?(error)
+        }
+    }
+
+    private func setLoading(_ value: Bool) {
+        isLoading = value
+        onChange?()
+    }
+}

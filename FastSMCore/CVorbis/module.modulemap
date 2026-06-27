@@ -1,0 +1,4 @@
+module CVorbis {
+    header "cvorbis.h"
+    export *
+}

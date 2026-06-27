@@ -1,0 +1,24 @@
+# Build output
+build/
+DerivedData/
+*.xcarchive
+*.ipa
+*.pkg
+*.dSYM
+
+# macOS
+.DS_Store
+
+# Xcode user state
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+*.xccheckout
+
+# Signing / secrets (defensive — these live outside the repo)
+*.p8
+*.p12
+*.mobileprovision
+*.cer
+*.pem
+config.json
