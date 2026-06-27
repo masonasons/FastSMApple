@@ -162,6 +162,22 @@ final class TimelineMergeTests: XCTestCase {
         XCTAssertEqual(controller.undoNavigation(), ids[0])
     }
 
+    func testGoBackNavigateGoBackAgain() async {
+        let controller = await loadedController()
+        let ids = controller.items.map(\.id)
+
+        controller.noteUserSelection(ids[0])
+        controller.noteUserSelection(ids[4])           // jump -> records ids[0]
+
+        // Go back: pop ids[0]; UI restores selectedID WITHOUT recording.
+        XCTAssertEqual(controller.undoNavigation(), ids[0])
+        controller.selectedID = ids[0]                 // mimics recordSelection(fromUser:false)
+
+        controller.noteUserSelection(ids[7])           // a NEW jump must be recorded
+        XCTAssertEqual(controller.undoNavigation(), ids[0],
+                       "navigation after a go-back must refill the history")
+    }
+
     func testNavigationHistorySkipsVanishedAndCapsAtTen() async {
         let controller = await loadedController()
         let ids = controller.items.map(\.id)
