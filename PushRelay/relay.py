@@ -31,6 +31,11 @@ from aiohttp import web
 from aioapns import APNs, NotificationRequest, PushType
 
 KEY_PATH = os.environ["APNS_KEY_PATH"]
+# aioapns hands `key` straight to jwt.encode(), which needs the PEM key material
+# itself — a file path would fail to parse ("Unable to load PEM file"). So read
+# the .p8 contents here rather than passing the path through.
+with open(KEY_PATH) as _key_file:
+    KEY_PEM = _key_file.read()
 KEY_ID = os.environ["APNS_KEY_ID"]
 TEAM_ID = os.environ["APNS_TEAM_ID"]
 TOPIC = os.environ["APNS_TOPIC"]
@@ -44,7 +49,7 @@ _clients: dict[str, APNs] = {}
 def client_for(env: str) -> APNs:
     if env not in _clients:
         _clients[env] = APNs(
-            key=KEY_PATH,
+            key=KEY_PEM,
             key_id=KEY_ID,
             team_id=TEAM_ID,
             topic=TOPIC,
