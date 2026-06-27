@@ -308,6 +308,26 @@ final class AppModel {
         await controllers[key]?.toggleBoost(at: index)
     }
 
+    // MARK: User actions
+
+    /// The user rows in a timeline (followers/following lists, people search).
+    func users(forKey key: String) -> [User] {
+        items(forKey: key).compactMap { if case .user(let u) = $0 { return u } else { return nil } }
+    }
+
+    /// Apply a follow/mute/block action to one or many users on a timeline's account.
+    func performUserAction(_ action: UserAction, userIDs: [String], in ref: TimelineRef) async {
+        guard !userIDs.isEmpty else { return }
+        var failures = 0
+        for id in userIDs {
+            do { try await ref.account.perform(action, on: id) } catch { failures += 1 }
+        }
+        if failures > 0 {
+            let n = userIDs.count
+            errorMessage = "\(action.title) failed for \(failures) of \(n) user\(n == 1 ? "" : "s")."
+        }
+    }
+
     @discardableResult
     func post(_ draft: PostDraft) async throws -> Status? {
         guard let key = selectedKey, let controller = controllers[key] else { return nil }

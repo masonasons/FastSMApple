@@ -85,6 +85,34 @@ public struct Relationship: Sendable, Hashable, Identifiable {
     }
 }
 
+/// An action that can be applied to one or many users (single row or batch).
+public enum UserAction: String, CaseIterable, Sendable, Identifiable {
+    case follow, unfollow, mute, unmute, block, unblock, hideBoosts, showBoosts
+
+    public var id: String { rawValue }
+
+    public var title: String {
+        switch self {
+        case .follow: return "Follow"
+        case .unfollow: return "Unfollow"
+        case .mute: return "Mute"
+        case .unmute: return "Unmute"
+        case .block: return "Block"
+        case .unblock: return "Unblock"
+        case .hideBoosts: return "Hide Boosts"
+        case .showBoosts: return "Show Boosts"
+        }
+    }
+
+    /// Only relevant on platforms with per-account boost hiding (Mastodon).
+    public var needsHideBoosts: Bool { self == .hideBoosts || self == .showBoosts }
+
+    /// The actions offered for a given account (drops boost hiding where unsupported).
+    public static func applicable(to account: SocialAccount) -> [UserAction] {
+        account.features.hideBoosts ? allCases : allCases.filter { !$0.needsHideBoosts }
+    }
+}
+
 /// A user-defined list (Mastodon lists), for opening as a timeline.
 public struct TimelineList: Identifiable, Sendable, Hashable {
     public let id: String
@@ -259,6 +287,20 @@ public extension SocialAccount {
     func unblock(_ userID: String) async throws { throw PlatformError.message("Unblocking isn't supported here.") }
     func setBoostsHidden(_ hidden: Bool, for userID: String) async throws { throw PlatformError.message("Hiding boosts isn't supported here.") }
     func relationships(for userIDs: [String]) async throws -> [Relationship] { [] }
+
+    /// Dispatch a `UserAction` to the matching method.
+    func perform(_ action: UserAction, on userID: String) async throws {
+        switch action {
+        case .follow: try await follow(userID)
+        case .unfollow: try await unfollow(userID)
+        case .mute: try await mute(userID)
+        case .unmute: try await unmute(userID)
+        case .block: try await block(userID)
+        case .unblock: try await unblock(userID)
+        case .hideBoosts: try await setBoostsHidden(true, for: userID)
+        case .showBoosts: try await setBoostsHidden(false, for: userID)
+        }
+    }
 }
 
 /// Errors surfaced by platform clients.

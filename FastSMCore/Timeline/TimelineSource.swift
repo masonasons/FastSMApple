@@ -110,6 +110,16 @@ public enum TimelineSource: Hashable, Sendable, Codable {
         return false
     }
 
+    /// True when rows are users (followers/following lists, people search), so
+    /// the UI can offer multi-select and batch follow/mute/block actions.
+    public var isUserList: Bool {
+        switch self {
+        case .followers, .following: return true
+        case .search(_, let kind): return kind == .users
+        default: return false
+        }
+    }
+
     /// Whether items are ordered newest-first by time (so merges should re-sort
     /// and the cache cap drops the oldest). Threads keep conversation order, user
     /// lists keep server order, and favorites/bookmarks keep action order.

@@ -10,16 +10,16 @@
 import AppKit
 import FastSMCore
 
-enum UserAction {
+enum UserInfoAction {
     case viewPosts, followers, following, openInBrowser
 }
 
 @MainActor
 final class UserInfoWindowController: NSWindowController {
     private let user: User
-    private let onAction: (UserAction) -> Void
+    private let onAction: (UserInfoAction) -> Void
 
-    init(user: User, onAction: @escaping (UserAction) -> Void) {
+    init(user: User, onAction: @escaping (UserInfoAction) -> Void) {
         self.user = user
         self.onAction = onAction
         let window = NSWindow(
@@ -61,7 +61,7 @@ final class UserInfoWindowController: NSWindowController {
         info.widthAnchor.constraint(equalToConstant: 380).isActive = true
         stack.addArrangedSubview(info)
 
-        for (title, action) in [("View Posts", UserAction.viewPosts), ("Followers", .followers), ("Following", .following)] {
+        for (title, action) in [("View Posts", UserInfoAction.viewPosts), ("Followers", .followers), ("Following", .following)] {
             let button = NSButton(title: title, target: self, action: #selector(chooseAction(_:)))
             button.tag = tag(for: action)
             button.bezelStyle = .rounded
@@ -84,7 +84,7 @@ final class UserInfoWindowController: NSWindowController {
         bottom.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -28).isActive = true
     }
 
-    private func tag(for action: UserAction) -> Int {
+    private func tag(for action: UserInfoAction) -> Int {
         switch action {
         case .viewPosts: return 0
         case .followers: return 1
@@ -93,7 +93,7 @@ final class UserInfoWindowController: NSWindowController {
         }
     }
 
-    private func action(for tag: Int) -> UserAction {
+    private func action(for tag: Int) -> UserInfoAction {
         switch tag {
         case 0: return .viewPosts
         case 1: return .followers

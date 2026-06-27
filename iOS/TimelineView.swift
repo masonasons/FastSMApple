@@ -16,6 +16,7 @@ struct TimelinePagerView: View {
     @Environment(AppModel.self) private var model
     @State private var showingSettings = false
     @State private var showingAddAccount = false
+    @State private var showingUserSelect = false
     @State private var activePrompt: PromptKind?
     @State private var promptText = ""
 
@@ -89,6 +90,9 @@ struct TimelinePagerView: View {
             }
             .sheet(isPresented: $showingSettings) { SettingsView() }
             .sheet(isPresented: $showingAddAccount) { AddAccountView() }
+            .sheet(isPresented: $showingUserSelect) {
+                if let ref = model.selectedRef { UserBatchSheet(ref: ref) }
+            }
             .alert(activePrompt?.title ?? "", isPresented: promptPresented) {
                 TextField(activePrompt?.placeholder ?? "", text: $promptText)
                     .textInputAutocapitalization(.never)
@@ -156,6 +160,9 @@ struct TimelinePagerView: View {
                 Label(model.isMuted(key) ? "Unmute" : "Mute", systemImage: model.isMuted(key) ? "speaker.wave.2" : "speaker.slash")
             }
             Button { model.clearTimeline(key: key) } label: { Label("Clear Items", systemImage: "trash") }
+            if model.selectedRef?.source.isUserList == true {
+                Button { showingUserSelect = true } label: { Label("Select…", systemImage: "checkmark.circle") }
+            }
             if model.selectedRef?.source.isDismissable == true {
                 Button(role: .destructive) { model.closeTimeline(key: key) } label: { Label("Close Tab", systemImage: "xmark.circle") }
             }
@@ -362,6 +369,45 @@ struct MediaPlayerSheet: View {
     }
 }
 
+/// Multi-select over a user list, with a batch Follow/Mute/Block menu.
+struct UserBatchSheet: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
+    let ref: TimelineRef
+    @State private var selected = Set<String>()
+
+    private var users: [User] { model.users(forKey: ref.key) }
+
+    var body: some View {
+        NavigationStack {
+            List(users, id: \.id, selection: $selected) { user in
+                VStack(alignment: .leading) {
+                    Text(user.bestName)
+                    Text("@\(user.acct)").font(.caption).foregroundStyle(.secondary)
+                }
+                .accessibilityElement(children: .combine)
+            }
+            .environment(\.editMode, .constant(.active))
+            .navigationTitle(selected.isEmpty ? "Select Users" : "\(selected.count) selected")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } }
+                ToolbarItem(placement: .primaryAction) {
+                    Menu("Actions") {
+                        ForEach(UserAction.applicable(to: ref.account)) { action in
+                            Button(action.title) {
+                                let ids = Array(selected)
+                                Task { await model.performUserAction(action, userIDs: ids, in: ref); dismiss() }
+                            }
+                        }
+                    }
+                    .disabled(selected.isEmpty)
+                }
+            }
+        }
+    }
+}
+
 struct TimelineTabBar: View {
     @Environment(AppModel.self) private var model
 
@@ -428,6 +474,11 @@ struct PostActions: View {
             list.append(Action(title: "View Posts") { model.spawn(.userPosts(userID: user.id, title: "@\(user.acct)"), for: ref.account) })
             list.append(Action(title: "Followers") { model.spawn(.followers(userID: user.id, title: "Followers: @\(user.acct)"), for: ref.account) })
             list.append(Action(title: "Following") { model.spawn(.following(userID: user.id, title: "Following: @\(user.acct)"), for: ref.account) })
+            for userAction in UserAction.applicable(to: ref.account) {
+                list.append(Action(title: userAction.title) {
+                    Task { await model.performUserAction(userAction, userIDs: [user.id], in: ref) }
+                })
+            }
             if let url = user.url { list.append(Action(title: "Open in Browser") { openURL(url) }) }
         default:
             if let status = item.actionableStatus {

@@ -63,7 +63,7 @@ final class TimelineViewController: NSViewController {
             self?.services.playEarcon(.navigate)
             self?.services.nextTimeline()
         }
-        tableView.onReturn = { [weak self] in self?.showInfoForSelection() }
+        tableView.onReturn = { [weak self] in self?.handleReturn() }
         tableView.onCommandReturn = { [weak self] in self?.openLinksForSelection(nil) }
         tableView.onShiftReturn = { [weak self] in self?.playMediaForSelection(nil) }
         tableView.onSpace = { [weak self] in self?.openThreadForSelection() }
@@ -115,6 +115,9 @@ final class TimelineViewController: NSViewController {
     private var renderedIDs: [String] = []
 
     func reload() {
+        // Only user lists allow multi-select (for batch follow/mute/block); post
+        // timelines stay single-select so navigation drives the saved position.
+        tableView.allowsMultipleSelection = services.selectedRef?.source.isUserList ?? false
         let ids = items.map(\.id)
         if ids != renderedIDs {
             renderedIDs = ids
@@ -358,6 +361,63 @@ final class TimelineViewController: NSViewController {
         spawn(.following(userID: user.id, title: "Following: @\(user.acct)"), for: account)
     }
 
+    // MARK: User actions (single + batch)
+
+    /// Users in the current (possibly multiple) selection.
+    private var selectedUsers: [User] {
+        tableView.selectedRowIndexes.compactMap { items.indices.contains($0) ? items[$0].user : nil }
+    }
+
+    /// Enter on a user list pops a menu of follow/mute/block actions for the
+    /// selected user(s); on other timelines it opens the info dialog.
+    private func handleReturn() {
+        if services.selectedRef?.source.isUserList == true, !selectedUsers.isEmpty {
+            presentUserActions(nil)
+        } else {
+            showInfoForSelection()
+        }
+    }
+
+    @objc private func presentUserActions(_ sender: Any?) {
+        guard let account = currentAccount else { return }
+        let count = selectedUsers.count
+        guard count > 0 else { return }
+        let menu = NSMenu(title: "User Actions")
+        for action in UserAction.applicable(to: account) {
+            let title = count > 1 ? "\(action.title) (\(count))" : action.title
+            let item = menu.addItem(withTitle: title, action: #selector(applyUserAction(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = action.rawValue
+        }
+        popUpAtSelectedRow(menu)
+    }
+
+    @objc private func applyUserAction(_ sender: NSMenuItem) {
+        guard let account = currentAccount,
+              let raw = sender.representedObject as? String,
+              let action = UserAction(rawValue: raw) else { return }
+        let ids = selectedUsers.map(\.id)
+        guard !ids.isEmpty else { return }
+        Task { [weak self] in
+            var failures = 0
+            for id in ids {
+                do { try await account.perform(action, on: id) } catch { failures += 1 }
+            }
+            guard let self else { return }
+            if failures > 0 {
+                self.present(error: PlatformError.message("\(action.title) failed for \(failures) of \(ids.count) user\(ids.count == 1 ? "" : "s")."))
+            } else {
+                self.announce("\(action.title): \(ids.count) user\(ids.count == 1 ? "" : "s")")
+            }
+        }
+    }
+
+    private func announce(_ message: String) {
+        NSAccessibility.post(element: view.window ?? NSApp, notification: .announcementRequested,
+                             userInfo: [.announcement: message,
+                                        .priority: NSAccessibilityPriorityLevel.high.rawValue])
+    }
+
     // MARK: Right-click menu
 
     private func contextMenu(forRow row: Int) -> NSMenu? {
@@ -387,6 +447,14 @@ final class TimelineViewController: NSViewController {
             add("View Posts", #selector(viewSelectedUserPosts(_:)))
             add("Followers", #selector(viewSelectedUserFollowers(_:)))
             add("Following", #selector(viewSelectedUserFollowing(_:)))
+            if let account = currentAccount {
+                menu.addItem(.separator())
+                for userAction in UserAction.applicable(to: account) {
+                    let menuItem = menu.addItem(withTitle: userAction.title, action: #selector(applyUserAction(_:)), keyEquivalent: "")
+                    menuItem.target = self
+                    menuItem.representedObject = userAction.rawValue
+                }
+            }
         }
         return menu.items.isEmpty ? nil : menu
     }
@@ -505,7 +573,7 @@ final class TimelineViewController: NSViewController {
         }
     }
 
-    private func handle(_ action: UserAction, for user: User) {
+    private func handle(_ action: UserInfoAction, for user: User) {
         guard let account = currentAccount else { return }
         switch action {
         case .viewPosts: spawn(.userPosts(userID: user.id, title: "@\(user.acct)"), for: account)
