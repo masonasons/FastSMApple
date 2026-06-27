@@ -167,6 +167,7 @@ struct TimelinePagerView: View {
                 Label(model.isMuted(key) ? "Unmute" : "Mute", systemImage: model.isMuted(key) ? "speaker.wave.2" : "speaker.slash")
             }
             Button { model.clearTimeline(key: key) } label: { Label("Clear Items", systemImage: "trash") }
+            Button { model.requestNavBack() } label: { Label("Go Back", systemImage: "arrow.uturn.backward") }
             if model.selectedRef?.source.isUserList == true {
                 Button { showingUserSelect = true } label: { Label("Select…", systemImage: "checkmark.circle") }
             }
@@ -268,6 +269,10 @@ struct TimelinePageView: View {
     /// the saved/synced position to match).
     @AccessibilityFocusState private var focusedID: String?
 
+    /// True while an undo is programmatically moving focus, so the resulting
+    /// focus change isn't recorded back into navigation history.
+    @State private var isRestoringFocus = false
+
     private var items: [TimelineItem] { model.items(forKey: ref.key) }
 
     var body: some View {
@@ -313,8 +318,32 @@ struct TimelinePageView: View {
         .onDisappear { hasRestoredScroll = false }
         // Track the row VoiceOver is reading as the saved/synced position.
         .onChange(of: focusedID) { _, id in
-            if let id { model.setSelectedItemID(id, forKey: ref.key) }
+            guard let id else { return }
+            if isRestoringFocus {
+                isRestoringFocus = false
+                model.restoreSelectedItemID(id, forKey: ref.key)   // don't re-record
+            } else {
+                model.setSelectedItemID(id, forKey: ref.key)
+            }
         }
+        // VoiceOver escape gesture steps back through navigation history.
+        .accessibilityAction(.escape) { goBack(proxy) }
+        // "Go Back" in the More menu requests it on the visible timeline.
+        .onChange(of: model.navBackTick) { _, _ in
+            if model.selectedKey == ref.key { goBack(proxy) }
+        }
+    }
+
+    /// Step back to the previous position in this timeline's navigation history,
+    /// moving VoiceOver focus there without re-recording it.
+    private func goBack(_ proxy: ScrollViewProxy) {
+        guard let target = model.undoNavigation(forKey: ref.key) else {
+            model.playNavBoundary(forKey: ref.key)
+            return
+        }
+        isRestoringFocus = true
+        proxy.scrollTo(target, anchor: .center)
+        focusedID = target
     }
 
     /// Add one VoiceOver rotor per enabled movement unit; each rotor's entries

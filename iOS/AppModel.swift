@@ -202,6 +202,26 @@ final class AppModel {
         positions.setPosition(id, forKey: key)
     }
 
+    // MARK: Navigation history (undo)
+
+    /// Pop the previous position in a timeline's navigation history.
+    func undoNavigation(forKey key: String) -> String? { controllers[key]?.undoNavigation() }
+
+    /// Set the remembered position WITHOUT recording navigation history — used
+    /// when restoring focus during an undo, so it doesn't re-enter the history.
+    func restoreSelectedItemID(_ id: String?, forKey key: String) {
+        controllers[key]?.selectedID = id
+        positions.setPosition(id, forKey: key)
+    }
+
+    /// Bumped to ask the visible timeline to step back through its navigation
+    /// history (from the More menu; the VoiceOver escape gesture acts directly).
+    private(set) var navBackTick = 0
+    func requestNavBack() { navBackTick += 1 }
+
+    /// Boundary feedback when there's nothing left to go back to.
+    func playNavBoundary(forKey key: String) { playEarcon(.boundary, timeline: key) }
+
     /// Persist any pending position changes right away (e.g. on backgrounding),
     /// so a quick close doesn't lose your spot.
     func flush() { positions.flush() }
