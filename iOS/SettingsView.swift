@@ -17,6 +17,7 @@ struct SettingsView: View {
     @State private var cacheLimit: Int = 200
     @State private var soundsEnabled: Bool = true
     @State private var demojify: Bool = false
+    @State private var enterToSend: Bool = false
     @State private var soundpack: String = AppSettings.defaultSoundpackName
     @State private var autoRefresh: Int = 0
     @State private var syncHomePosition: Bool = false
@@ -39,6 +40,8 @@ struct SettingsView: View {
                 Section("General") {
                     Toggle("Remove emojis from post text", isOn: $demojify)
                         .onChange(of: demojify) { _, value in model.updateDemojify(value) }
+                    Toggle("Send posts with Return key", isOn: $enterToSend)
+                        .onChange(of: enterToSend) { _, value in model.updateEnterToSend(value) }
                 }
 
                 Section("Speech") {
@@ -109,6 +112,7 @@ struct SettingsView: View {
                 cacheLimit = model.settingsCacheLimit
                 soundsEnabled = model.settingsSoundsEnabled
                 demojify = model.settingsDemojify
+                enterToSend = model.settingsEnterToSend
                 soundpack = model.settingsSoundpack
                 autoRefresh = model.settingsAutoRefresh
                 syncHomePosition = model.settingsSyncHomePosition

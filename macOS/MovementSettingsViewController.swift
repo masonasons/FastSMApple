@@ -60,7 +60,7 @@ final class MovementSettingsViewController: NSViewController {
         buttonRow.translatesAutoresizingMaskIntoConstraints = false
 
         let hint = NSTextField(wrappingLabelWithString:
-            "Press Space (or click) to enable/disable a unit. Reorder with Option+Up / Option+Down or the buttons. In a timeline, Option+Left/Right picks a unit and Option+Up/Down jumps by it.")
+            "Press Space (or click) to enable/disable a unit. Reorder with Option+Up / Option+Down or the buttons. In a timeline, Command+Left/Right picks a unit and Command+Up/Down jumps by it.")
         hint.textColor = .secondaryLabelColor
         hint.font = .systemFont(ofSize: 11)
         hint.translatesAutoresizingMaskIntoConstraints = false

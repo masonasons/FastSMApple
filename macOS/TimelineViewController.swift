@@ -67,10 +67,10 @@ final class TimelineViewController: NSViewController {
         tableView.onCommandReturn = { [weak self] in self?.openLinksForSelection(nil) }
         tableView.onShiftReturn = { [weak self] in self?.playMediaForSelection(nil) }
         tableView.onSpace = { [weak self] in self?.openThreadForSelection() }
-        tableView.onOptionLeft = { [weak self] in self?.cycleMovementUnit(by: -1) }
-        tableView.onOptionRight = { [weak self] in self?.cycleMovementUnit(by: 1) }
-        tableView.onOptionUp = { [weak self] in self?.moveByUnit(.up) }
-        tableView.onOptionDown = { [weak self] in self?.moveByUnit(.down) }
+        tableView.onCommandLeft = { [weak self] in self?.cycleMovementUnit(by: -1) }
+        tableView.onCommandRight = { [weak self] in self?.cycleMovementUnit(by: 1) }
+        tableView.onCommandUp = { [weak self] in self?.moveByUnit(.up) }
+        tableView.onCommandDown = { [weak self] in self?.moveByUnit(.down) }
         tableView.onDelete = { [weak self] in
             guard let self else { return }
             self.services.closeCurrentTimeline()
@@ -416,7 +416,7 @@ final class TimelineViewController: NSViewController {
         }
     }
 
-    // MARK: Movement units (Option+Left/Right to pick, Option+Up/Down to jump)
+    // MARK: Movement units (Command+Left/Right to pick, Command+Up/Down to jump)
 
     private var movementUnitIndex = 0
     private var movementUnits: [MovementUnit] { MovementConfig.current.enabledUnits }

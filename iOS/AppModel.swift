@@ -432,6 +432,8 @@ final class AppModel {
     var settingsCacheLimit: Int { settings.settings.cacheLimit }
     var settingsSoundsEnabled: Bool { settings.settings.soundsEnabled }
     var settingsDemojify: Bool { settings.settings.demojify }
+    var settingsEnterToSend: Bool { settings.settings.enterToSend }
+    func updateEnterToSend(_ value: Bool) { settings.update { $0.enterToSend = value } }
     var settingsSoundpack: String { settings.settings.soundpack }
     func updateFetchPages(_ value: Int) { settings.update { $0.fetchPages = value } }
     func updateCacheLimit(_ value: Int) { settings.update { $0.cacheLimit = value } }

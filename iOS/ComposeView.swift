@@ -8,6 +8,7 @@
 //
 
 import SwiftUI
+import UIKit
 import FastSMCore
 
 struct ComposeView: View {
@@ -72,9 +73,19 @@ struct ComposeView: View {
                 }
 
                 Section {
-                    TextField("What's on your mind?", text: $text, axis: .vertical)
-                        .lineLimit(5...12)
-                        .accessibilityLabel("Post text")
+                    ComposeTextView(text: $text, autofocus: true, returnSends: model.settingsEnterToSend) {
+                        if canPost { Task { await submit() } }
+                    }
+                    .frame(minHeight: 120)
+                    .overlay(alignment: .topLeading) {
+                        if text.isEmpty {
+                            Text("What's on your mind?")
+                                .foregroundStyle(.tertiary)
+                                .padding(.top, 8)
+                                .allowsHitTesting(false)
+                        }
+                    }
+                    .accessibilityLabel("Post text")
                 } footer: {
                     Text("\(remaining)")
                         .foregroundStyle(remaining < 0 ? .red : .secondary)
@@ -206,6 +217,70 @@ struct ComposeView: View {
             dismiss()
         } catch {
             errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+}
+
+/// UITextView subclass that catches the Return/Enter *key action* — which is
+/// what VoiceOver Braille Screen Input's "send" gesture (three-finger swipe up)
+/// and a hardware Return produce — and routes it to a closure. The two-finger
+/// "new line" gesture inserts a literal "\n" instead and is left alone.
+final class ComposeUITextView: UITextView {
+    var onReturnKey: (() -> Void)?
+    override var keyCommands: [UIKeyCommand]? {
+        let command = UIKeyCommand(input: "\r", modifierFlags: [], action: #selector(handleReturnKey))
+        command.wantsPriorityOverSystemBehavior = true
+        return [command]
+    }
+    @objc private func handleReturnKey() { onReturnKey?() }
+}
+
+/// A UITextView-backed editor so the composer can (1) auto-focus on appear so the
+/// keyboard pops up, (2) send on the Return key action (BSI's send gesture /
+/// hardware Return), and (3) optionally send when the on-screen keyboard's
+/// Return is tapped, if "Send with Return" is on — otherwise that inserts a
+/// newline as usual.
+struct ComposeTextView: UIViewRepresentable {
+    @Binding var text: String
+    var autofocus: Bool = false
+    var returnSends: Bool = false
+    var onSend: () -> Void
+
+    func makeUIView(context: Context) -> ComposeUITextView {
+        let textView = ComposeUITextView()
+        textView.delegate = context.coordinator
+        textView.font = .preferredFont(forTextStyle: .body)
+        textView.adjustsFontForContentSizeCategory = true
+        textView.backgroundColor = .clear
+        textView.textContainerInset = UIEdgeInsets(top: 8, left: 0, bottom: 8, right: 0)
+        textView.textContainer.lineFragmentPadding = 0
+        textView.accessibilityLabel = "Post text"
+        textView.onReturnKey = { [weak coordinator = context.coordinator] in coordinator?.parent.onSend() }
+        if autofocus {
+            // Slight delay so the sheet's present animation has settled.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                if textView.window != nil { textView.becomeFirstResponder() }
+            }
+        }
+        return textView
+    }
+
+    func updateUIView(_ uiView: ComposeUITextView, context: Context) {
+        context.coordinator.parent = self   // keep returnSends / onSend current
+        if uiView.text != text { uiView.text = text }
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    final class Coordinator: NSObject, UITextViewDelegate {
+        var parent: ComposeTextView
+        init(_ parent: ComposeTextView) { self.parent = parent }
+
+        func textViewDidChange(_ textView: UITextView) { parent.text = textView.text }
+
+        func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
+            if text == "\n", parent.returnSends { parent.onSend(); return false }
+            return true
         }
     }
 }
