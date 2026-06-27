@@ -12,6 +12,8 @@
 		000000000000000000000302 /* FastSMCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 000000000000000000000200 /* FastSMCore.framework */; };
 		000000000000000000000303 /* FastSMCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 000000000000000000000200 /* FastSMCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		000000000000000000000304 /* FastSMCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 000000000000000000000200 /* FastSMCore.framework */; };
+		000000000000000000000305 /* FastSMNotificationService.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 000000000000000000000204 /* FastSMNotificationService.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		000000000000000000000306 /* FastSMCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 000000000000000000000200 /* FastSMCore.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -35,6 +37,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = 000000000000000000000100;
 			remoteInfo = FastSMCore;
+		};
+		000000000000000000000513 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 000000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 000000000000000000000104;
+			remoteInfo = FastSMNotificationService;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -61,6 +70,17 @@
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		000000000000000000000424 /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				000000000000000000000305 /* FastSMNotificationService.appex in Embed App Extensions */,
+			);
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
@@ -68,6 +88,7 @@
 		000000000000000000000201 /* FastSM.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FastSM.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		000000000000000000000202 /* FastSM.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FastSM.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		000000000000000000000203 /* FastSMCoreTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FastSMCoreTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		000000000000000000000204 /* FastSMNotificationService.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = FastSMNotificationService.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -85,6 +106,14 @@
 				Info.plist,
 			);
 			target = 000000000000000000000102 /* FastSM-iOS */;
+		};
+		000000000000000000000032 /* Exceptions for "NotificationService" folder in "FastSMNotificationService" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+				FastSMNotificationService.entitlements,
+			);
+			target = 000000000000000000000104 /* FastSMNotificationService */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -113,6 +142,14 @@
 		000000000000000000000023 /* FastSMCoreTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = Tests/FastSMCoreTests;
+			sourceTree = "<group>";
+		};
+		000000000000000000000024 /* NotificationService */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				000000000000000000000032 /* Exceptions for "NotificationService" folder in "FastSMNotificationService" target */,
+			);
+			path = NotificationService;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -149,6 +186,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		000000000000000000000441 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				000000000000000000000306 /* FastSMCore.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -159,6 +204,7 @@
 				000000000000000000000021 /* macOS */,
 				000000000000000000000022 /* iOS */,
 				000000000000000000000023 /* FastSMCoreTests */,
+				000000000000000000000024 /* NotificationService */,
 				000000000000000000000011 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -170,6 +216,7 @@
 				000000000000000000000201 /* FastSM.app */,
 				000000000000000000000202 /* FastSM.app */,
 				000000000000000000000203 /* FastSMCoreTests.xctest */,
+				000000000000000000000204 /* FastSMNotificationService.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -227,11 +274,13 @@
 				000000000000000000000421 /* Frameworks */,
 				000000000000000000000422 /* Resources */,
 				000000000000000000000423 /* Embed Frameworks */,
+				000000000000000000000424 /* Embed App Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				000000000000000000000501 /* PBXTargetDependency */,
+				000000000000000000000503 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				000000000000000000000022 /* iOS */,
@@ -261,6 +310,26 @@
 			productReference = 000000000000000000000203 /* FastSMCoreTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		000000000000000000000104 /* FastSMNotificationService */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0000000000000000000006F5 /* Build configuration list for PBXNativeTarget "FastSMNotificationService" */;
+			buildPhases = (
+				000000000000000000000440 /* Sources */,
+				000000000000000000000441 /* Frameworks */,
+				000000000000000000000442 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				000000000000000000000024 /* NotificationService */,
+			);
+			name = FastSMNotificationService;
+			productName = FastSMNotificationService;
+			productReference = 000000000000000000000204 /* FastSMNotificationService.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -283,6 +352,9 @@
 					000000000000000000000103 = {
 						CreatedOnToolsVersion = 26.5;
 					};
+					000000000000000000000104 = {
+						CreatedOnToolsVersion = 26.5;
+					};
 				};
 			};
 			buildConfigurationList = 0000000000000000000006F0 /* Build configuration list for PBXProject "FastSM" */;
@@ -303,6 +375,7 @@
 				000000000000000000000101 /* FastSM-macOS */,
 				000000000000000000000102 /* FastSM-iOS */,
 				000000000000000000000103 /* FastSMCoreTests */,
+				000000000000000000000104 /* FastSMNotificationService */,
 			);
 		};
 /* End PBXProject section */
@@ -323,6 +396,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		000000000000000000000422 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		000000000000000000000442 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -360,6 +440,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		000000000000000000000440 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -377,6 +464,11 @@
 			isa = PBXTargetDependency;
 			target = 000000000000000000000100 /* FastSMCore */;
 			targetProxy = 000000000000000000000512 /* PBXContainerItemProxy */;
+		};
+		000000000000000000000503 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 000000000000000000000104 /* FastSMNotificationService */;
+			targetProxy = 000000000000000000000513 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -617,6 +709,56 @@
 			};
 			name = Release;
 		};
+		000000000000000000000650 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = NotificationService/FastSMNotificationService.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = NotificationService/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = me.masonasons.fastsm.NotificationService;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		000000000000000000000651 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = NotificationService/FastSMNotificationService.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = NotificationService/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = me.masonasons.fastsm.NotificationService;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -661,6 +803,15 @@
 			buildConfigurations = (
 				000000000000000000000640 /* Debug */,
 				000000000000000000000641 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		0000000000000000000006F5 /* Build configuration list for PBXNativeTarget "FastSMNotificationService" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				000000000000000000000650 /* Debug */,
+				000000000000000000000651 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

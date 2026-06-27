@@ -21,20 +21,12 @@ final class PushManager {
     /// Called when the device token arrives so AppModel can (re)subscribe.
     var onTokenChanged: (() -> Void)?
 
-    private var keysByAccount: [String: WebPushKeys] = [:]
-    private let url: URL
+    // Persisted in the shared app group container so the Notification Service
+    // Extension can read the private keys to decrypt incoming pushes.
+    private var keysByAccount: [String: WebPushKeys]
 
     private init() {
-        let fm = FileManager.default
-        let base = (try? fm.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true))
-            ?? fm.temporaryDirectory
-        let dir = base.appendingPathComponent("FastSM", isDirectory: true)
-        try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
-        url = dir.appendingPathComponent("pushkeys.json")
-        if let data = try? Data(contentsOf: url),
-           let loaded = try? JSONDecoder().decode([String: WebPushKeys].self, from: data) {
-            keysByAccount = loaded
-        }
+        keysByAccount = PushKeyStore.load()
     }
 
     func setDeviceToken(_ token: String) {
@@ -67,8 +59,6 @@ final class PushManager {
     }
 
     private func save() {
-        if let data = try? JSONEncoder().encode(keysByAccount) {
-            try? data.write(to: url, options: .atomic)
-        }
+        PushKeyStore.save(keysByAccount)
     }
 }
