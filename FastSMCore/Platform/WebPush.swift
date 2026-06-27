@@ -68,4 +68,68 @@ public enum WebPush {
             .replacingOccurrences(of: "/", with: "_")
             .replacingOccurrences(of: "=", with: "")
     }
+
+    public static func base64urlDecode(_ string: String) -> Data? {
+        var s = string.replacingOccurrences(of: "-", with: "+")
+                      .replacingOccurrences(of: "_", with: "/")
+        while s.count % 4 != 0 { s.append("=") }
+        return Data(base64Encoded: s)
+    }
+
+    public enum DecryptError: Error { case malformed, badKey }
+
+    /// Decrypt a Mastodon Web Push body (RFC 8291 / RFC 8188 `aes128gcm`) using a
+    /// subscription's private key + auth secret. Returns the plaintext push JSON.
+    /// Throws (incl. AES-GCM auth failure) when the keys don't match the message —
+    /// callers with several subscriptions can try each keypair until one succeeds.
+    public static func decrypt(_ message: Data,
+                               privateKeyBase64url: String,
+                               authBase64url: String) throws -> Data {
+        let bytes = [UInt8](message)
+        // Header: salt(16) || recordSize(4) || idLen(1) || keyId(idLen) || ciphertext
+        guard bytes.count > 21 else { throw DecryptError.malformed }
+        let salt = Data(bytes[0..<16])
+        let idLen = Int(bytes[20])
+        let headerEnd = 21 + idLen
+        guard idLen == 65, bytes.count > headerEnd + 16 else { throw DecryptError.malformed }
+        let serverPublic = Data(bytes[21..<headerEnd])   // app server's ephemeral P-256 key
+        let ciphertext = Data(bytes[headerEnd...])
+
+        guard let privRaw = base64urlDecode(privateKeyBase64url),
+              let authSecret = base64urlDecode(authBase64url) else { throw DecryptError.badKey }
+        let priv = try P256.KeyAgreement.PrivateKey(rawRepresentation: privRaw)
+        let serverKey = try P256.KeyAgreement.PublicKey(x963Representation: serverPublic)
+        let shared = try priv.sharedSecretFromKeyAgreement(with: serverKey)
+        let uaPublic = priv.publicKey.x963Representation
+
+        // RFC 8291 §3.4: IKM = HKDF(salt: auth_secret, ikm: ecdh, info: key_info).
+        var keyInfo = Data("WebPush: info".utf8)
+        keyInfo.append(0x00)
+        keyInfo.append(uaPublic)
+        keyInfo.append(serverPublic)
+        let ikm = shared.withUnsafeBytes { ecdh in
+            HKDF<SHA256>.deriveKey(inputKeyMaterial: SymmetricKey(data: ecdh),
+                                   salt: authSecret, info: keyInfo, outputByteCount: 32)
+        }
+
+        // RFC 8188 §2.2: content-encryption key + nonce, both salted by the header salt.
+        let cek = HKDF<SHA256>.deriveKey(inputKeyMaterial: ikm, salt: salt,
+            info: Data("Content-Encoding: aes128gcm".utf8) + [0x00], outputByteCount: 16)
+        let nonce = HKDF<SHA256>.deriveKey(inputKeyMaterial: ikm, salt: salt,
+            info: Data("Content-Encoding: nonce".utf8) + [0x00], outputByteCount: 12)
+            .withUnsafeBytes { Data($0) }
+
+        let sealed = try AES.GCM.SealedBox(nonce: try AES.GCM.Nonce(data: nonce),
+                                           ciphertext: ciphertext.dropLast(16),
+                                           tag: ciphertext.suffix(16))
+        var plain = [UInt8](try AES.GCM.open(sealed, using: cek))
+
+        // RFC 8188 §2: strip trailing 0x00 padding and the record delimiter (0x02 last).
+        while plain.last == 0x00 { plain.removeLast() }
+        guard let delimiter = plain.last, delimiter == 0x01 || delimiter == 0x02 else {
+            throw DecryptError.malformed
+        }
+        plain.removeLast()
+        return Data(plain)
+    }
 }
