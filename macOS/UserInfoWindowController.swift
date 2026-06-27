@@ -40,6 +40,21 @@ final class UserInfoWindowController: NSWindowController {
         parent.beginSheet(window!) { _ in onDismiss() }
     }
 
+    /// All the profile info as multi-line text: name, handle, any flags, the bio,
+    /// then follower/following/post counts.
+    private var profileText: String {
+        var lines: [String] = [user.bestName, "@\(user.acct)"]
+        var flags: [String] = []
+        if user.bot { flags.append("Bot") }
+        if user.locked { flags.append("Locked account") }
+        if !flags.isEmpty { lines.append(flags.joined(separator: " · ")) }
+        let bio = HTMLStripper.strip(user.note)
+        if !bio.isEmpty { lines.append(""); lines.append(bio) }
+        lines.append("")
+        lines.append("\(user.followersCount) followers · \(user.followingCount) following · \(user.statusesCount) posts")
+        return lines.joined(separator: "\n")
+    }
+
     private func buildUI() {
         guard let content = window?.contentView else { return }
         let stack = NSStackView()
@@ -56,25 +71,25 @@ final class UserInfoWindowController: NSWindowController {
             stack.bottomAnchor.constraint(equalTo: content.bottomAnchor),
         ])
 
-        // The bio in a read-only, selectable text view so VoiceOver can navigate
-        // it and the text can be copied.
-        let bioScroll = NSTextView.scrollableTextView()
-        bioScroll.translatesAutoresizingMaskIntoConstraints = false
-        bioScroll.borderType = .bezelBorder
-        bioScroll.hasVerticalScroller = true
-        if let bioView = bioScroll.documentView as? NSTextView {
-            bioView.isEditable = false
-            bioView.isSelectable = true
-            bioView.drawsBackground = true
-            bioView.textContainerInset = NSSize(width: 6, height: 6)
-            let bio = HTMLStripper.strip(user.note)
-            bioView.string = bio.isEmpty ? "No bio." : bio
-            bioView.setAccessibilityLabel("Bio")
+        // All the profile info (name, handle, flags, bio, counts) in a read-only,
+        // selectable text view so VoiceOver can navigate it and the text can be
+        // copied — instead of a static, unfocusable label.
+        let infoScroll = NSTextView.scrollableTextView()
+        infoScroll.translatesAutoresizingMaskIntoConstraints = false
+        infoScroll.borderType = .bezelBorder
+        infoScroll.hasVerticalScroller = true
+        if let infoView = infoScroll.documentView as? NSTextView {
+            infoView.isEditable = false
+            infoView.isSelectable = true
+            infoView.drawsBackground = true
+            infoView.textContainerInset = NSSize(width: 6, height: 6)
+            infoView.string = profileText
+            infoView.setAccessibilityLabel("Profile")
         }
-        stack.addArrangedSubview(bioScroll)
+        stack.addArrangedSubview(infoScroll)
         NSLayoutConstraint.activate([
-            bioScroll.widthAnchor.constraint(equalToConstant: 380),
-            bioScroll.heightAnchor.constraint(equalToConstant: 120),
+            infoScroll.widthAnchor.constraint(equalToConstant: 380),
+            infoScroll.heightAnchor.constraint(equalToConstant: 140),
         ])
 
         for (title, action) in [("View Posts", UserInfoAction.viewPosts), ("Followers", .followers), ("Following", .following)] {
