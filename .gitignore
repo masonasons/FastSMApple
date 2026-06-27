@@ -22,3 +22,6 @@ xcuserdata/
 *.cer
 *.pem
 config.json
+
+# Local-only build/upload scripts (signing IDs)
+Scripts/
