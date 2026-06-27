@@ -201,10 +201,24 @@ public final class TimelineController {
 
     /// Append older posts. Fetches up to `fetchPages` pages per scrollback so the
     /// page-count setting applies to loading history, not just refresh.
+    private var pendingLoadOlder = false
+
     public func loadOlder() async {
-        guard let account, var cursor = nextCursor, !isLoading else { return }
+        guard account != nil, nextCursor != nil else { return }
+        // A trigger that arrives mid-load would otherwise be dropped (and the
+        // UI's onAppear/.task won't re-fire for rows already on screen), stalling
+        // infinite scroll. Coalesce: remember it and run one more round after.
+        if isLoading { pendingLoadOlder = true; return }
         setLoading(true)
-        defer { setLoading(false) }
+        repeat {
+            pendingLoadOlder = false
+            await fetchOlderPage()
+        } while pendingLoadOlder && nextCursor != nil
+        setLoading(false)
+    }
+
+    private func fetchOlderPage() async {
+        guard let account, var cursor = nextCursor else { return }
         do {
             let pageCount = max(1, pageCountProvider())
             var existingIDs = Set(items.map(\.id))
