@@ -1,0 +1,15 @@
+[Unit]
+Description=FastSM push relay (Mastodon Web Push -> APNs)
+After=network.target
+
+[Service]
+Type=simple
+User=mew
+WorkingDirectory=/home/mew/fastsm-push-relay
+EnvironmentFile=/home/mew/fastsm-push-relay/relay.env
+ExecStart=/home/mew/fastsm-push-relay/venv/bin/python /home/mew/fastsm-push-relay/relay.py
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
