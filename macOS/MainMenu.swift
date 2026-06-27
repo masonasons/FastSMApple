@@ -64,6 +64,13 @@ enum MainMenu {
         quote.keyEquivalentModifierMask = [.command, .shift]
         statusMenu.addItem(withTitle: "Post Info…", action: #selector(TimelineViewController.showPostInfo(_:)), keyEquivalent: "i")
         statusMenu.addItem(withTitle: "View Thread", action: #selector(TimelineViewController.viewThread(_:)), keyEquivalent: "")
+        statusMenu.addItem(.separator())
+        // Open User Timeline is also the plain `u` single-key shortcut; the menu
+        // item is for discoverability and exposes no command-key equivalent.
+        statusMenu.addItem(withTitle: "Open User Timeline", action: #selector(TimelineViewController.openUserTimelineForSelection(_:)), keyEquivalent: "")
+        let profile = statusMenu.addItem(withTitle: "Open User Profile", action: #selector(TimelineViewController.openUserProfileForSelection(_:)), keyEquivalent: "u")
+        profile.keyEquivalentModifierMask = [.command]
+        statusMenu.addItem(.separator())
         statusMenu.addItem(withTitle: "Open in Browser", action: #selector(TimelineViewController.openSelectionInBrowser(_:)), keyEquivalent: "")
 
         // Timeline menu

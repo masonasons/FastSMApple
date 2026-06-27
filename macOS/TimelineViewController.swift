@@ -537,6 +537,46 @@ final class TimelineViewController: NSViewController {
         spawn(.userPosts(userID: id, title: sender.title), for: account)
     }
 
+    /// ⌘U: open the focused post author's profile, or a menu of all users in the
+    /// post (author + mentions) if there's more than one. On a user row, opens
+    /// that user's profile directly.
+    @objc func openUserProfileForSelection(_ sender: Any?) {
+        guard let account = currentAccount else { return }
+        if case .user(let user)? = selectedItem {
+            presentUserInfo(user)
+            return
+        }
+        guard let status = selectedStatus else { return }
+        var seen = Set<String>()
+        var users: [User] = []
+        func add(_ user: User) {
+            guard !user.id.isEmpty, !seen.contains(user.id) else { return }
+            seen.insert(user.id); users.append(user)
+        }
+        add(status.account)
+        for mention in status.mentions {
+            add(User(id: mention.id, acct: mention.acct, username: mention.username,
+                     displayName: mention.username, url: mention.url, platform: account.platform))
+        }
+        guard !users.isEmpty else { return }
+        if users.count == 1 {
+            presentUserInfo(users[0])
+            return
+        }
+        let menu = NSMenu(title: "User Profile")
+        for user in users {
+            let item = menu.addItem(withTitle: "@\(user.acct)", action: #selector(openProfileFromMenu(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = user
+        }
+        popUpAtSelectedRow(menu)
+    }
+
+    @objc private func openProfileFromMenu(_ sender: NSMenuItem) {
+        guard let user = sender.representedObject as? User else { return }
+        presentUserInfo(user)
+    }
+
     /// Whether the selected post can be edited (own post, platform supports it).
     private var canEditSelection: Bool {
         guard let account = currentAccount, let status = selectedStatus else { return false }
