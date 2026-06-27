@@ -81,20 +81,20 @@ public final class MastodonAccount: SocialAccount, @unchecked Sendable {
             let statuses = try await client.userStatuses(userID: userID, limit: limit, maxID: cursor.maxID)
             return TimelinePage(statuses: statuses, nextCursor: statuses.last.map { .maxID($0.id) })
         case .followers(let userID, _):
-            let users = try await client.followers(userID: userID, limit: limit)
-            return TimelinePage(items: users.map(TimelineItem.user), nextCursor: nil)
+            let (users, next) = try await client.followers(userID: userID, limit: limit, maxID: cursor.maxID)
+            return TimelinePage(items: users.map(TimelineItem.user), nextCursor: next.map { .maxID($0) })
         case .following(let userID, _):
-            let users = try await client.following(userID: userID, limit: limit)
-            return TimelinePage(items: users.map(TimelineItem.user), nextCursor: nil)
+            let (users, next) = try await client.following(userID: userID, limit: limit, maxID: cursor.maxID)
+            return TimelinePage(items: users.map(TimelineItem.user), nextCursor: next.map { .maxID($0) })
         case .hashtag(let tag):
             let statuses = try await client.hashtagTimeline(tag: tag, limit: limit, maxID: cursor.maxID)
             return TimelinePage(statuses: statuses, nextCursor: statuses.last.map { .maxID($0.id) })
         case .favorites:
-            let statuses = try await client.favourites(limit: limit)
-            return TimelinePage(statuses: statuses, nextCursor: nil)
+            let (statuses, next) = try await client.favourites(limit: limit, maxID: cursor.maxID)
+            return TimelinePage(statuses: statuses, nextCursor: next.map { .maxID($0) })
         case .bookmarks:
-            let statuses = try await client.bookmarks(limit: limit)
-            return TimelinePage(statuses: statuses, nextCursor: nil)
+            let (statuses, next) = try await client.bookmarks(limit: limit, maxID: cursor.maxID)
+            return TimelinePage(statuses: statuses, nextCursor: next.map { .maxID($0) })
         case .list(let id, _):
             let statuses = try await client.listTimeline(id: id, limit: limit, maxID: cursor.maxID)
             return TimelinePage(statuses: statuses, nextCursor: statuses.last.map { .maxID($0.id) })
@@ -177,6 +177,7 @@ public final class MastodonAccount: SocialAccount, @unchecked Sendable {
         try await client.relationships(ids: userIDs)
     }
 
+    public var supportsIDPagination: Bool { true }
     public var supportsPush: Bool { true }
     public func registerPushSubscription(endpoint: URL, keys: WebPushKeys, alerts: PushAlerts) async throws {
         try await client.subscribePush(endpoint: endpoint, p256dh: keys.p256dh, auth: keys.auth, alerts: alerts)

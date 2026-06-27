@@ -110,6 +110,18 @@ public enum TimelineSource: Hashable, Sendable, Codable {
         return false
     }
 
+    /// True for feeds Mastodon paginates by item id (max_id), so scrollback can
+    /// be seeded from the oldest loaded item.
+    public var paginatesByItemID: Bool {
+        switch self {
+        case .home, .local, .federated, .notifications, .mentions, .userPosts,
+             .hashtag, .list, .remoteLocal, .remoteUser:
+            return true
+        default:
+            return false
+        }
+    }
+
     /// True when rows are users (followers/following lists, people search), so
     /// the UI can offer multi-select and batch follow/mute/block actions.
     public var isUserList: Bool {

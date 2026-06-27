@@ -275,6 +275,10 @@ public protocol SocialAccount: AnyObject, Sendable {
 
     // MARK: Push
 
+    /// Whether feeds paginate by item id (Mastodon max_id), so scrollback can be
+    /// seeded from the oldest cached item.
+    var supportsIDPagination: Bool { get }
+
     /// Whether this account can deliver push notifications (Mastodon Web Push).
     var supportsPush: Bool { get }
     /// Register (or replace) a Web Push subscription so the server pushes to the
@@ -298,6 +302,7 @@ public extension SocialAccount {
     func setBoostsHidden(_ hidden: Bool, for userID: String) async throws { throw PlatformError.message("Hiding boosts isn't supported here.") }
     func relationships(for userIDs: [String]) async throws -> [Relationship] { [] }
 
+    var supportsIDPagination: Bool { false }
     var supportsPush: Bool { false }
     func registerPushSubscription(endpoint: URL, keys: WebPushKeys, alerts: PushAlerts) async throws {
         throw PlatformError.message("Push isn't supported here.")

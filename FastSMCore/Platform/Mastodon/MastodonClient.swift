@@ -85,18 +85,30 @@ public struct MastodonClient: Sendable {
         return dtos.compactMap(MastodonMapper.status)
     }
 
-    // Favourites/bookmarks paginate by an opaque Link-header id, so we fetch the
-    // first page only (no status-id scrollback).
-    public func favourites(limit: Int) async throws -> [Status] {
-        let request = authorizedRequest(path: "api/v1/favourites", query: [URLQueryItem(name: "limit", value: String(limit))])
-        let dtos = try await http.decode([MastodonStatusDTO].self, from: request, decoder: MastodonJSON.decoder)
-        return dtos.compactMap(MastodonMapper.status)
+    // Favourites/bookmarks/followers/following paginate by an opaque Link-header
+    // `max_id`, returned alongside the page so the caller can scroll back.
+    private func linkPagedStatuses(path: String, limit: Int, maxID: String?) async throws -> (statuses: [Status], next: String?) {
+        var query = [URLQueryItem(name: "limit", value: String(limit))]
+        if let maxID { query.append(URLQueryItem(name: "max_id", value: maxID)) }
+        let (data, next) = try await http.dataAndNextMaxID(for: authorizedRequest(path: path, query: query))
+        let dtos = try MastodonJSON.decoder.decode([MastodonStatusDTO].self, from: data)
+        return (dtos.compactMap(MastodonMapper.status), next)
     }
 
-    public func bookmarks(limit: Int) async throws -> [Status] {
-        let request = authorizedRequest(path: "api/v1/bookmarks", query: [URLQueryItem(name: "limit", value: String(limit))])
-        let dtos = try await http.decode([MastodonStatusDTO].self, from: request, decoder: MastodonJSON.decoder)
-        return dtos.compactMap(MastodonMapper.status)
+    private func linkPagedUsers(path: String, limit: Int, maxID: String?) async throws -> (users: [User], next: String?) {
+        var query = [URLQueryItem(name: "limit", value: String(limit))]
+        if let maxID { query.append(URLQueryItem(name: "max_id", value: maxID)) }
+        let (data, next) = try await http.dataAndNextMaxID(for: authorizedRequest(path: path, query: query))
+        let dtos = try MastodonJSON.decoder.decode([MastodonAccountDTO].self, from: data)
+        return (dtos.compactMap(MastodonMapper.user), next)
+    }
+
+    public func favourites(limit: Int, maxID: String?) async throws -> (statuses: [Status], next: String?) {
+        try await linkPagedStatuses(path: "api/v1/favourites", limit: limit, maxID: maxID)
+    }
+
+    public func bookmarks(limit: Int, maxID: String?) async throws -> (statuses: [Status], next: String?) {
+        try await linkPagedStatuses(path: "api/v1/bookmarks", limit: limit, maxID: maxID)
     }
 
     public func homeMarker() async throws -> String? {
@@ -253,16 +265,12 @@ public struct MastodonClient: Sendable {
         return dtos.compactMap(MastodonMapper.status)
     }
 
-    public func followers(userID: String, limit: Int) async throws -> [User] {
-        let request = authorizedRequest(path: "api/v1/accounts/\(userID)/followers", query: [URLQueryItem(name: "limit", value: String(limit))])
-        let dtos = try await http.decode([MastodonAccountDTO].self, from: request, decoder: MastodonJSON.decoder)
-        return dtos.compactMap(MastodonMapper.user)
+    public func followers(userID: String, limit: Int, maxID: String?) async throws -> (users: [User], next: String?) {
+        try await linkPagedUsers(path: "api/v1/accounts/\(userID)/followers", limit: limit, maxID: maxID)
     }
 
-    public func following(userID: String, limit: Int) async throws -> [User] {
-        let request = authorizedRequest(path: "api/v1/accounts/\(userID)/following", query: [URLQueryItem(name: "limit", value: String(limit))])
-        let dtos = try await http.decode([MastodonAccountDTO].self, from: request, decoder: MastodonJSON.decoder)
-        return dtos.compactMap(MastodonMapper.user)
+    public func following(userID: String, limit: Int, maxID: String?) async throws -> (users: [User], next: String?) {
+        try await linkPagedUsers(path: "api/v1/accounts/\(userID)/following", limit: limit, maxID: maxID)
     }
 
     // MARK: Actions

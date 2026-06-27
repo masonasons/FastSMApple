@@ -125,6 +125,13 @@ public final class TimelineController {
         let cached = await cache.load(key: cacheKey)
         guard !cached.isEmpty, items.isEmpty else { return }
         items = cached
+        // Seed the cursor BELOW the cached backlog so scrollback fetches older
+        // posts, not the pages we already have. (Mastodon paginates by item id;
+        // Bluesky's opaque cursor can't be reconstructed from items, so it falls
+        // back to refresh-driven seeding.)
+        if account?.supportsIDPagination == true, source.paginatesByItemID, let oldest = cached.last {
+            nextCursor = .maxID(oldest.id)
+        }
         onChange?()
     }
 
