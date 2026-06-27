@@ -261,6 +261,9 @@ struct TimelinePageView: View {
     /// the saved/synced position to match).
     @AccessibilityFocusState private var focusedID: String?
 
+    /// Namespace tying each row to its movement-rotor entries.
+    @Namespace private var rotorNamespace
+
     private var items: [TimelineItem] { model.items(forKey: ref.key) }
 
     // Backed by the model so the position persists across page revisits/restarts.
@@ -273,30 +276,60 @@ struct TimelinePageView: View {
 
     var body: some View {
         ScrollViewReader { proxy in
-            List(selection: selection) {
-                ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
-                    TimelineItemRow(item: item, demojify: model.settingsDemojify)
-                        .tag(item.id)
-                        .accessibilityFocused($focusedID, equals: item.id)
-                        .contextMenu { PostActions(item: item, ref: ref, index: index) }
-                        .accessibilityActions { PostActions(item: item, ref: ref, index: index, reversed: true) }
-                        .task { await model.loadOlderIfNeeded(key: ref.key, index: index) }
-                }
-            }
-            .listStyle(.plain)
-            .refreshable { await model.refresh(key: ref.key) }
-            .overlay { if items.isEmpty { ContentUnavailableView("No Posts", systemImage: "tray") } }
-            .background { postShortcuts }
-            // Restore the saved/synced position ONCE, when items first load —
-            // never on later refreshes, so it doesn't fight the reader.
-            .onChange(of: items.count) { _, _ in restoreScrollOnce(proxy) }
-            .onAppear { restoreScrollOnce(proxy) }
-            .onDisappear { hasRestoredScroll = false }
-            // Track the row VoiceOver is reading as the saved/synced position.
-            .onChange(of: focusedID) { _, id in
-                if let id { model.setSelectedItemID(id, forKey: ref.key) }
+            applyMovementRotors(to: timelineList(proxy))
+        }
+    }
+
+    @ViewBuilder
+    private func timelineList(_ proxy: ScrollViewProxy) -> some View {
+        List(selection: selection) {
+            ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                TimelineItemRow(item: item, demojify: model.settingsDemojify)
+                    .tag(item.id)
+                    .accessibilityFocused($focusedID, equals: item.id)
+                    .accessibilityRotorEntry(id: item.id, in: rotorNamespace)
+                    .contextMenu { PostActions(item: item, ref: ref, index: index) }
+                    .accessibilityActions { PostActions(item: item, ref: ref, index: index, reversed: true) }
+                    .task { await model.loadOlderIfNeeded(key: ref.key, index: index) }
             }
         }
+        .listStyle(.plain)
+        .refreshable { await model.refresh(key: ref.key) }
+        .overlay { if items.isEmpty { ContentUnavailableView("No Posts", systemImage: "tray") } }
+        .background { postShortcuts }
+        // Restore the saved/synced position ONCE, when items first load —
+        // never on later refreshes, so it doesn't fight the reader.
+        .onChange(of: items.count) { _, _ in restoreScrollOnce(proxy) }
+        .onAppear { restoreScrollOnce(proxy) }
+        .onDisappear { hasRestoredScroll = false }
+        // Track the row VoiceOver is reading as the saved/synced position.
+        .onChange(of: focusedID) { _, id in
+            if let id { model.setSelectedItemID(id, forKey: ref.key) }
+        }
+    }
+
+    /// Add one VoiceOver rotor per enabled movement unit; each rotor's entries
+    /// are the unit's "stops" (time buckets, author runs, thread roots), so a
+    /// VoiceOver user picks a rotor and swipes to jump by that unit.
+    private func applyMovementRotors<V: View>(to view: V) -> some View {
+        var result = AnyView(view)
+        for unit in MovementConfig.current.enabledUnits {
+            let stops = Movement.rotorStops(in: items, unit: unit)
+            let title = unit.title
+            result = AnyView(result.accessibilityRotor(title) {
+                ForEach(stops, id: \.self) { idx in
+                    if items.indices.contains(idx) {
+                        AccessibilityRotorEntry(Text(rotorLabel(idx)), id: items[idx].id, in: rotorNamespace)
+                    }
+                }
+            })
+        }
+        return result
+    }
+
+    private func rotorLabel(_ idx: Int) -> String {
+        guard items.indices.contains(idx), let s = items[idx].actionableStatus else { return "Post" }
+        return "\(s.account.bestName): \(s.text.prefix(60))"
     }
 
     private func restoreScrollOnce(_ proxy: ScrollViewProxy) {

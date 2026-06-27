@@ -37,6 +37,7 @@ final class SettingsWindowController: NSWindowController {
         tabController.addTabViewItem(makeTab("Timelines", symbol: "list.bullet") { self.buildTimelines($0) })
         tabController.addTabViewItem(makeTab("Audio", symbol: "speaker.wave.2") { self.buildAudio($0) })
         tabController.addTabViewItem(makeSpeechTab())
+        tabController.addTabViewItem(makeMovementTab())
         tabController.addTabViewItem(makeTab("Advanced", symbol: "wrench.and.screwdriver") { self.buildAdvanced($0) })
         tabController.addTabViewItem(makeTab("Confirmation", symbol: "checkmark.shield") { self.buildConfirmation($0) })
         window.contentViewController = tabController
@@ -51,6 +52,13 @@ final class SettingsWindowController: NSWindowController {
         let item = NSTabViewItem(viewController: SpeechSettingsViewController(settings: settings))
         item.label = "Speech"
         item.image = NSImage(systemSymbolName: "text.bubble", accessibilityDescription: "Speech")
+        return item
+    }
+
+    private func makeMovementTab() -> NSTabViewItem {
+        let item = NSTabViewItem(viewController: MovementSettingsViewController(settings: settings))
+        item.label = "Movement"
+        item.image = NSImage(systemSymbolName: "arrow.up.arrow.down", accessibilityDescription: "Movement")
         return item
     }
 

@@ -35,6 +35,9 @@ public struct AppSettings: Codable, Sendable, Equatable {
     /// What VoiceOver reads for posts and users (order + on/off).
     public var speech: SpeechSettings
 
+    /// Which timeline-movement units are offered, and in what order.
+    public var movement: MovementSettings
+
     /// Seconds between automatic timeline refreshes (0 = off).
     public var autoRefreshSeconds: Int
 
@@ -63,6 +66,7 @@ public struct AppSettings: Codable, Sendable, Equatable {
         soundpack: String = AppSettings.defaultSoundpackName,
         demojify: Bool = false,
         speech: SpeechSettings = .default,
+        movement: MovementSettings = .default,
         autoRefreshSeconds: Int = 0,
         syncHomePosition: Bool = false,
         streamingEnabled: Bool = false
@@ -77,6 +81,7 @@ public struct AppSettings: Codable, Sendable, Equatable {
         self.soundpack = soundpack
         self.demojify = demojify
         self.speech = speech
+        self.movement = movement
         self.autoRefreshSeconds = autoRefreshSeconds
         self.syncHomePosition = syncHomePosition
         self.streamingEnabled = streamingEnabled
@@ -98,6 +103,7 @@ public struct AppSettings: Codable, Sendable, Equatable {
         soundpack = try container.decodeIfPresent(String.self, forKey: .soundpack) ?? AppSettings.defaultSoundpackName
         demojify = try container.decodeIfPresent(Bool.self, forKey: .demojify) ?? false
         speech = (try container.decodeIfPresent(SpeechSettings.self, forKey: .speech) ?? .default).normalized()
+        movement = (try container.decodeIfPresent(MovementSettings.self, forKey: .movement) ?? .default).normalized()
         autoRefreshSeconds = try container.decodeIfPresent(Int.self, forKey: .autoRefreshSeconds) ?? 0
         syncHomePosition = try container.decodeIfPresent(Bool.self, forKey: .syncHomePosition) ?? false
         streamingEnabled = try container.decodeIfPresent(Bool.self, forKey: .streamingEnabled) ?? false
@@ -134,12 +140,14 @@ public final class SettingsStore {
             self.settings = AppSettings()
         }
         SpeechConfig.current = settings.speech
+        MovementConfig.current = settings.movement
     }
 
     /// Mutate, persist, and notify in one call.
     public func update(_ mutate: (inout AppSettings) -> Void) {
         mutate(&settings)
         SpeechConfig.current = settings.speech
+        MovementConfig.current = settings.movement
         save()
         onChange?()
     }

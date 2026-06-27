@@ -45,6 +45,10 @@ struct SettingsView: View {
                     NavigationLink("What VoiceOver reads") { SpeechSettingsView() }
                 }
 
+                Section("Movement") {
+                    NavigationLink("Movement units (rotors)") { MovementSettingsView() }
+                }
+
                 Section {
                     Toggle("Play sounds", isOn: $soundsEnabled)
                         .onChange(of: soundsEnabled) { _, value in model.updateSounds(value) }

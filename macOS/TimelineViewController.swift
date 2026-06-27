@@ -67,6 +67,10 @@ final class TimelineViewController: NSViewController {
         tableView.onCommandReturn = { [weak self] in self?.openLinksForSelection(nil) }
         tableView.onShiftReturn = { [weak self] in self?.playMediaForSelection(nil) }
         tableView.onSpace = { [weak self] in self?.openThreadForSelection() }
+        tableView.onOptionLeft = { [weak self] in self?.cycleMovementUnit(by: -1) }
+        tableView.onOptionRight = { [weak self] in self?.cycleMovementUnit(by: 1) }
+        tableView.onOptionUp = { [weak self] in self?.moveByUnit(.up) }
+        tableView.onOptionDown = { [weak self] in self?.moveByUnit(.down) }
         tableView.onDelete = { [weak self] in
             guard let self else { return }
             self.services.closeCurrentTimeline()
@@ -409,6 +413,35 @@ final class TimelineViewController: NSViewController {
             } else {
                 self.announce("\(action.title): \(ids.count) user\(ids.count == 1 ? "" : "s")")
             }
+        }
+    }
+
+    // MARK: Movement units (Option+Left/Right to pick, Option+Up/Down to jump)
+
+    private var movementUnitIndex = 0
+    private var movementUnits: [MovementUnit] { MovementConfig.current.enabledUnits }
+
+    private func cycleMovementUnit(by delta: Int) {
+        let units = movementUnits
+        guard !units.isEmpty else { announce("No movement units configured"); return }
+        let count = units.count
+        movementUnitIndex = ((movementUnitIndex + delta) % count + count) % count
+        announce("Move by \(units[movementUnitIndex].title)")
+    }
+
+    private func moveByUnit(_ direction: MoveDirection) {
+        let units = movementUnits
+        guard !units.isEmpty else { announce("No movement units configured"); return }
+        if movementUnitIndex >= units.count { movementUnitIndex = 0 }
+        let unit = units[movementUnitIndex]
+        let from = tableView.selectedRow
+        guard from >= 0 else { return }
+        if let target = Movement.destination(in: items, from: from, unit: unit, direction: direction) {
+            tableView.selectRowIndexes(IndexSet(integer: target), byExtendingSelection: false)
+            tableView.scrollRowToVisible(target)
+        } else {
+            services.playEarcon(.boundary)
+            announce("No more by \(unit.title)")
         }
     }
 

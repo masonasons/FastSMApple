@@ -440,6 +440,8 @@ final class AppModel {
     func updateSoundpack(_ value: String) { settings.update { $0.soundpack = value } }
     var speechSettings: SpeechSettings { settings.settings.speech }
     func updateSpeech(_ value: SpeechSettings) { settings.update { $0.speech = value } }
+    var movementSettings: MovementSettings { settings.settings.movement }
+    func updateMovement(_ value: MovementSettings) { settings.update { $0.movement = value } }
     var settingsAutoRefresh: Int { settings.settings.autoRefreshSeconds }
     func updateAutoRefresh(_ value: Int) { settings.update { $0.autoRefreshSeconds = value } }
     var settingsSyncHomePosition: Bool { settings.settings.syncHomePosition }
