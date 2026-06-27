@@ -10,27 +10,27 @@ import FastSMCore
 
 struct TimelineItemRow: View {
     let item: TimelineItem
-    var demojify: Bool = false
+    var emoji: EmojiPrefs = .none
 
     var body: some View {
         switch item {
         case .status(let status):
-            StatusRow(status: status, demojify: demojify)
+            StatusRow(status: status, emoji: emoji)
         case .notification(let notification):
-            NotificationRow(notification: notification, demojify: demojify)
+            NotificationRow(notification: notification, emoji: emoji)
         case .user(let user):
-            UserRow(user: user, demojify: demojify)
+            UserRow(user: user, emoji: emoji)
         }
     }
 }
 
 struct UserRow: View {
     let user: User
-    var demojify: Bool = false
+    var emoji: EmojiPrefs = .none
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(user.bestName.demojified(if: demojify)).font(.subheadline.bold())
+            Text(user.bestName.strippingEmoji(emoji.name)).font(.subheadline.bold())
             Text("@\(user.acct)").font(.caption).foregroundStyle(.secondary)
             let bio = HTMLStripper.strip(user.note)
             if !bio.isEmpty {
@@ -39,13 +39,13 @@ struct UserRow: View {
         }
         .padding(.vertical, 2)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(UserPresenter.accessibilityLabel(for: user, demojify: demojify))
+        .accessibilityLabel(UserPresenter.accessibilityLabel(for: user, emoji: emoji))
     }
 }
 
 struct NotificationRow: View {
     let notification: FastSMCore.Notification
-    var demojify: Bool = false
+    var emoji: EmojiPrefs = .none
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
@@ -53,13 +53,13 @@ struct NotificationRow: View {
                 .foregroundStyle(tint)
                 .frame(width: 22)
             VStack(alignment: .leading, spacing: 2) {
-                Text(NotificationPresenter.compactLine(for: notification, demojify: demojify))
+                Text(NotificationPresenter.compactLine(for: notification, emoji: emoji))
                     .font(.subheadline)
             }
         }
         .padding(.vertical, 2)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(NotificationPresenter.accessibilityLabel(for: notification, demojify: demojify))
+        .accessibilityLabel(NotificationPresenter.accessibilityLabel(for: notification, emoji: emoji))
     }
 
     private var symbol: String {

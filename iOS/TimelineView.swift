@@ -290,7 +290,7 @@ struct TimelinePageView: View {
             LazyVStack(spacing: 0) {
                 ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                     VStack(spacing: 0) {
-                        TimelineItemRow(item: item, demojify: model.settingsDemojify)
+                        TimelineItemRow(item: item, emoji: model.settingsEmojiPrefs)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.horizontal)
                             .padding(.vertical, 8)

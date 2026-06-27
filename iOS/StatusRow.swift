@@ -11,19 +11,19 @@ import FastSMCore
 
 struct StatusRow: View {
     let status: Status
-    var demojify: Bool = false
+    var emoji: EmojiPrefs = .none
 
     private var display: Status { status.displayStatus }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             if status.isBoost {
-                Text("\(status.account.bestName.demojified(if: demojify)) boosted")
+                Text("\(status.account.bestName.strippingEmoji(emoji.name)) boosted")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
             HStack {
-                Text(display.account.bestName.demojified(if: demojify))
+                Text(display.account.bestName.strippingEmoji(emoji.name))
                     .font(.subheadline.bold())
                 Text("@\(display.account.acct)")
                     .font(.caption)
@@ -41,7 +41,7 @@ struct StatusRow: View {
                     .foregroundStyle(.secondary)
             }
 
-            Text(display.text.demojified(if: demojify))
+            Text(display.text.strippingEmoji(emoji.post))
                 .font(.body)
 
             if !display.mediaAttachments.isEmpty {
@@ -61,7 +61,7 @@ struct StatusRow: View {
         }
         .padding(.vertical, 2)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(StatusPresenter.accessibilityLabel(for: status, demojify: demojify))
+        .accessibilityLabel(StatusPresenter.accessibilityLabel(for: status, emoji: emoji))
     }
 
     private func stat(_ symbol: String, _ count: Int, active: Bool, color: Color) -> some View {

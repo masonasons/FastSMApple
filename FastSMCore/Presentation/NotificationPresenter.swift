@@ -23,24 +23,24 @@ public enum NotificationPresenter {
         }
     }
 
-    public static func compactLine(for notification: Notification, now: Date = Date(), demojify: Bool = false) -> String {
-        let who = notification.account.bestName.demojified(if: demojify)
+    public static func compactLine(for notification: Notification, now: Date = Date(), emoji: EmojiPrefs = .none) -> String {
+        let who = notification.account.bestName.strippingEmoji(emoji.name)
         let phrase = actionPhrase(notification.type)
         let time = RelativeDate.compact(notification.createdAt, now: now)
         if let text = notification.status?.displayStatus.text, !text.isEmpty {
-            return "\(who) \(phrase) (\(time)): \(text.demojified(if: demojify))"
+            return "\(who) \(phrase) (\(time)): \(text.strippingEmoji(emoji.post))"
         }
         return "\(who) \(phrase) (\(time))"
     }
 
-    public static func accessibilityLabel(for notification: Notification, now: Date = Date(), demojify: Bool = false) -> String {
+    public static func accessibilityLabel(for notification: Notification, now: Date = Date(), emoji: EmojiPrefs = .none) -> String {
         var parts: [String] = []
-        parts.append("\(notification.account.bestName.demojified(if: demojify)) \(actionPhrase(notification.type))")
+        parts.append("\(notification.account.bestName.strippingEmoji(emoji.name)) \(actionPhrase(notification.type))")
         if !notification.account.acct.isEmpty {
             parts.append("@\(notification.account.acct)")
         }
         if let text = notification.status?.displayStatus.text, !text.isEmpty {
-            parts.append(text.demojified(if: demojify))
+            parts.append(text.strippingEmoji(emoji.post))
         }
         parts.append(RelativeDate.spoken(notification.createdAt, now: now))
         return parts.joined(separator: ", ")
@@ -49,20 +49,20 @@ public enum NotificationPresenter {
 
 public extension TimelineItem {
     /// One-line summary appropriate to the item type.
-    func compactLine(now: Date = Date(), demojify: Bool = false) -> String {
+    func compactLine(now: Date = Date(), emoji: EmojiPrefs = .none) -> String {
         switch self {
-        case .status(let status): return StatusPresenter.compactLine(for: status, now: now, demojify: demojify)
-        case .notification(let notification): return NotificationPresenter.compactLine(for: notification, now: now, demojify: demojify)
-        case .user(let user): return UserPresenter.compactLine(for: user, demojify: demojify)
+        case .status(let status): return StatusPresenter.compactLine(for: status, now: now, emoji: emoji)
+        case .notification(let notification): return NotificationPresenter.compactLine(for: notification, now: now, emoji: emoji)
+        case .user(let user): return UserPresenter.compactLine(for: user, emoji: emoji)
         }
     }
 
     /// Full spoken VoiceOver label appropriate to the item type.
-    func accessibilityLabel(now: Date = Date(), demojify: Bool = false) -> String {
+    func accessibilityLabel(now: Date = Date(), emoji: EmojiPrefs = .none) -> String {
         switch self {
-        case .status(let status): return StatusPresenter.accessibilityLabel(for: status, now: now, demojify: demojify)
-        case .notification(let notification): return NotificationPresenter.accessibilityLabel(for: notification, now: now, demojify: demojify)
-        case .user(let user): return UserPresenter.accessibilityLabel(for: user, demojify: demojify)
+        case .status(let status): return StatusPresenter.accessibilityLabel(for: status, now: now, emoji: emoji)
+        case .notification(let notification): return NotificationPresenter.accessibilityLabel(for: notification, now: now, emoji: emoji)
+        case .user(let user): return UserPresenter.accessibilityLabel(for: user, emoji: emoji)
         }
     }
 }

@@ -29,8 +29,13 @@ public struct AppSettings: Codable, Sendable, Equatable {
     public var soundsEnabled: Bool
     /// Selected soundpack name. "Default" = the built-in pack.
     public var soundpack: String
-    /// Strip emoji from displayed post text.
-    public var demojify: Bool
+    /// Which emoji to strip from displayed post text.
+    public var postEmojiRemoval: EmojiRemoval
+    /// Which emoji to strip from displayed user/display names.
+    public var nameEmojiRemoval: EmojiRemoval
+
+    /// Combined emoji-removal prefs for the presenters.
+    public var emojiPrefs: EmojiPrefs { EmojiPrefs(post: postEmojiRemoval, name: nameEmojiRemoval) }
 
     /// What VoiceOver reads for posts and users (order + on/off).
     public var speech: SpeechSettings
@@ -68,7 +73,8 @@ public struct AppSettings: Codable, Sendable, Equatable {
         confirmClearTimeline: Bool = true,
         soundsEnabled: Bool = true,
         soundpack: String = AppSettings.defaultSoundpackName,
-        demojify: Bool = false,
+        postEmojiRemoval: EmojiRemoval = .none,
+        nameEmojiRemoval: EmojiRemoval = .none,
         speech: SpeechSettings = .default,
         movement: MovementSettings = .default,
         autoRefreshSeconds: Int = 0,
@@ -84,7 +90,8 @@ public struct AppSettings: Codable, Sendable, Equatable {
         self.confirmClearTimeline = confirmClearTimeline
         self.soundsEnabled = soundsEnabled
         self.soundpack = soundpack
-        self.demojify = demojify
+        self.postEmojiRemoval = postEmojiRemoval
+        self.nameEmojiRemoval = nameEmojiRemoval
         self.speech = speech
         self.movement = movement
         self.autoRefreshSeconds = autoRefreshSeconds
@@ -107,7 +114,9 @@ public struct AppSettings: Codable, Sendable, Equatable {
         confirmClearTimeline = try container.decodeIfPresent(Bool.self, forKey: .confirmClearTimeline) ?? true
         soundsEnabled = try container.decodeIfPresent(Bool.self, forKey: .soundsEnabled) ?? true
         soundpack = try container.decodeIfPresent(String.self, forKey: .soundpack) ?? AppSettings.defaultSoundpackName
-        demojify = try container.decodeIfPresent(Bool.self, forKey: .demojify) ?? false
+        // (The old boolean `demojify` key is ignored if present; default off.)
+        postEmojiRemoval = try container.decodeIfPresent(EmojiRemoval.self, forKey: .postEmojiRemoval) ?? .none
+        nameEmojiRemoval = try container.decodeIfPresent(EmojiRemoval.self, forKey: .nameEmojiRemoval) ?? .none
         speech = (try container.decodeIfPresent(SpeechSettings.self, forKey: .speech) ?? .default).normalized()
         movement = (try container.decodeIfPresent(MovementSettings.self, forKey: .movement) ?? .default).normalized()
         autoRefreshSeconds = try container.decodeIfPresent(Int.self, forKey: .autoRefreshSeconds) ?? 0

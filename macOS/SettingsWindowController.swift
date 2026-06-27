@@ -125,10 +125,32 @@ final class SettingsWindowController: NSWindowController {
 
     // MARK: Tabs
 
+    private let postEmojiPopup = NSPopUpButton()
+    private let nameEmojiPopup = NSPopUpButton()
+
+    private func emojiRow(_ label: String, popup: NSPopUpButton, selected: EmojiRemoval, action: Selector) -> NSView {
+        let row = NSStackView()
+        row.orientation = .horizontal
+        row.spacing = 8
+        row.addArrangedSubview(NSTextField(labelWithString: label))
+        popup.removeAllItems()
+        for mode in EmojiRemoval.allCases { popup.addItem(withTitle: mode.title) }
+        if let idx = EmojiRemoval.allCases.firstIndex(of: selected) { popup.selectItem(at: idx) }
+        popup.target = self
+        popup.action = action
+        popup.setAccessibilityLabel(label)
+        row.addArrangedSubview(popup)
+        return row
+    }
+
     private func buildGeneral(_ stack: NSStackView) {
-        stack.addArrangedSubview(checkbox(
-            "Remove emojis and other unicode characters from posts and display names",
-            on: settings.settings.demojify, action: #selector(toggleDemojify(_:))))
+        stack.addArrangedSubview(emojiRow(
+            "Remove emoji from posts:", popup: postEmojiPopup,
+            selected: settings.settings.postEmojiRemoval, action: #selector(changePostEmoji(_:))))
+        stack.addArrangedSubview(emojiRow(
+            "Remove emoji from display names:", popup: nameEmojiPopup,
+            selected: settings.settings.nameEmojiRemoval, action: #selector(changeNameEmoji(_:))))
+        stack.addArrangedSubview(detail("Unicode = 😀 · Custom = Mastodon :shortcode: emoji."))
         stack.addArrangedSubview(checkbox(
             "Use ⌘Return to send posts (instead of Return)",
             on: !settings.settings.enterToSend, action: #selector(toggleCommandReturn(_:))))
@@ -258,7 +280,13 @@ final class SettingsWindowController: NSWindowController {
     // MARK: Actions
 
     @objc private func toggleSounds(_ sender: NSButton) { settings.update { $0.soundsEnabled = sender.state == .on } }
-    @objc private func toggleDemojify(_ sender: NSButton) { settings.update { $0.demojify = sender.state == .on } }
+    @objc private func changePostEmoji(_ sender: NSPopUpButton) {
+        settings.update { $0.postEmojiRemoval = EmojiRemoval.allCases[sender.indexOfSelectedItem] }
+    }
+
+    @objc private func changeNameEmoji(_ sender: NSPopUpButton) {
+        settings.update { $0.nameEmojiRemoval = EmojiRemoval.allCases[sender.indexOfSelectedItem] }
+    }
     @objc private func toggleConfirmBoost(_ sender: NSButton) { settings.update { $0.confirmBoost = sender.state == .on } }
     @objc private func toggleConfirmFavorite(_ sender: NSButton) { settings.update { $0.confirmFavorite = sender.state == .on } }
     @objc private func toggleConfirmClear(_ sender: NSButton) { settings.update { $0.confirmClearTimeline = sender.state == .on } }

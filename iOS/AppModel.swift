@@ -506,14 +506,17 @@ final class AppModel {
     var settingsFetchPages: Int { settings.settings.fetchPages }
     var settingsCacheLimit: Int { settings.settings.cacheLimit }
     var settingsSoundsEnabled: Bool { settings.settings.soundsEnabled }
-    var settingsDemojify: Bool { settings.settings.demojify }
+    var settingsEmojiPrefs: EmojiPrefs { settings.settings.emojiPrefs }
+    var settingsPostEmojiRemoval: EmojiRemoval { settings.settings.postEmojiRemoval }
+    var settingsNameEmojiRemoval: EmojiRemoval { settings.settings.nameEmojiRemoval }
     var settingsEnterToSend: Bool { settings.settings.enterToSend }
     func updateEnterToSend(_ value: Bool) { settings.update { $0.enterToSend = value } }
     var settingsSoundpack: String { settings.settings.soundpack }
     func updateFetchPages(_ value: Int) { settings.update { $0.fetchPages = value } }
     func updateCacheLimit(_ value: Int) { settings.update { $0.cacheLimit = value } }
     func updateSounds(_ value: Bool) { settings.update { $0.soundsEnabled = value } }
-    func updateDemojify(_ value: Bool) { settings.update { $0.demojify = value } }
+    func updatePostEmojiRemoval(_ value: EmojiRemoval) { settings.update { $0.postEmojiRemoval = value } }
+    func updateNameEmojiRemoval(_ value: EmojiRemoval) { settings.update { $0.nameEmojiRemoval = value } }
     func updateSoundpack(_ value: String) { settings.update { $0.soundpack = value } }
     var speechSettings: SpeechSettings { settings.settings.speech }
     func updateSpeech(_ value: SpeechSettings) { settings.update { $0.speech = value } }

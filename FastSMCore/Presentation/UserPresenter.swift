@@ -9,26 +9,26 @@
 import Foundation
 
 public enum UserPresenter {
-    public static func compactLine(for user: User, demojify: Bool = false) -> String {
-        "\(user.bestName.demojified(if: demojify)) (@\(user.acct))"
+    public static func compactLine(for user: User, emoji: EmojiPrefs = .none) -> String {
+        "\(user.bestName.strippingEmoji(emoji.name)) (@\(user.acct))"
     }
 
     public static func accessibilityLabel(
-        for user: User, demojify: Bool = false,
+        for user: User, emoji: EmojiPrefs = .none,
         speech: [SpeechItem<UserSpeechField>] = SpeechConfig.current.user
     ) -> String {
         var parts: [String] = []
         for item in speech where item.enabled {
-            if let part = string(for: item.field, user: user, demojify: demojify), !part.isEmpty {
+            if let part = string(for: item.field, user: user, emoji: emoji), !part.isEmpty {
                 parts.append(part)
             }
         }
         return parts.joined(separator: ", ")
     }
 
-    private static func string(for field: UserSpeechField, user: User, demojify: Bool) -> String? {
+    private static func string(for field: UserSpeechField, user: User, emoji: EmojiPrefs) -> String? {
         switch field {
-        case .author: return user.bestName.demojified(if: demojify)
+        case .author: return user.bestName.strippingEmoji(emoji.name)
         case .handle: return "@\(user.acct)"
         case .bot: return user.bot ? "bot" : nil
         case .locked: return user.locked ? "locked account" : nil

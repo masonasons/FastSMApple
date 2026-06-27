@@ -16,7 +16,8 @@ struct SettingsView: View {
     @State private var fetchPages: Int = 3
     @State private var cacheLimit: Int = 200
     @State private var soundsEnabled: Bool = true
-    @State private var demojify: Bool = false
+    @State private var postEmojiRemoval: EmojiRemoval = .none
+    @State private var nameEmojiRemoval: EmojiRemoval = .none
     @State private var enterToSend: Bool = false
     @State private var soundpack: String = AppSettings.defaultSoundpackName
     @State private var autoRefresh: Int = 0
@@ -39,8 +40,14 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 Section("General") {
-                    Toggle("Remove emojis from posts and names", isOn: $demojify)
-                        .onChange(of: demojify) { _, value in model.updateDemojify(value) }
+                    Picker("Remove emoji from posts", selection: $postEmojiRemoval) {
+                        ForEach(EmojiRemoval.allCases) { Text($0.title).tag($0) }
+                    }
+                    .onChange(of: postEmojiRemoval) { _, value in model.updatePostEmojiRemoval(value) }
+                    Picker("Remove emoji from names", selection: $nameEmojiRemoval) {
+                        ForEach(EmojiRemoval.allCases) { Text($0.title).tag($0) }
+                    }
+                    .onChange(of: nameEmojiRemoval) { _, value in model.updateNameEmojiRemoval(value) }
                     Toggle("Send posts with Return key", isOn: $enterToSend)
                         .onChange(of: enterToSend) { _, value in model.updateEnterToSend(value) }
                 }
@@ -124,7 +131,8 @@ struct SettingsView: View {
                 fetchPages = model.settingsFetchPages
                 cacheLimit = model.settingsCacheLimit
                 soundsEnabled = model.settingsSoundsEnabled
-                demojify = model.settingsDemojify
+                postEmojiRemoval = model.settingsPostEmojiRemoval
+                nameEmojiRemoval = model.settingsNameEmojiRemoval
                 enterToSend = model.settingsEnterToSend
                 soundpack = model.settingsSoundpack
                 autoRefresh = model.settingsAutoRefresh

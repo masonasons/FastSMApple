@@ -754,9 +754,9 @@ extension TimelineViewController: NSTableViewDataSource, NSTableViewDelegate {
         }
 
         let item = items[row]
-        let demojify = services.settings.settings.demojify
-        cell.textField?.stringValue = item.compactLine(demojify: demojify)
-        let label = item.accessibilityLabel(demojify: demojify)
+        let emoji = services.settings.settings.emojiPrefs
+        cell.textField?.stringValue = item.compactLine(emoji: emoji)
+        let label = item.accessibilityLabel(emoji: emoji)
         cell.setAccessibilityLabel(label)
         cell.textField?.setAccessibilityLabel(label)
         // Load more when a near-bottom row is realized (i.e. scrolled/VoiceOver-
