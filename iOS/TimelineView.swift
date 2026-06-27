@@ -276,7 +276,7 @@ struct TimelinePageView: View {
 
     var body: some View {
         ScrollViewReader { proxy in
-            applyMovementRotors(to: timelineList(proxy))
+            applyMovementRotors(to: timelineList(proxy), proxy: proxy)
         }
     }
 
@@ -311,7 +311,7 @@ struct TimelinePageView: View {
     /// Add one VoiceOver rotor per enabled movement unit; each rotor's entries
     /// are the unit's "stops" (time buckets, author runs, thread roots), so a
     /// VoiceOver user picks a rotor and swipes to jump by that unit.
-    private func applyMovementRotors<V: View>(to view: V) -> some View {
+    private func applyMovementRotors<V: View>(to view: V, proxy: ScrollViewProxy) -> some View {
         var result = AnyView(view)
         for unit in MovementConfig.current.enabledUnits {
             let stops = Movement.rotorStops(in: items, unit: unit)
@@ -319,7 +319,12 @@ struct TimelinePageView: View {
             result = AnyView(result.accessibilityRotor(title) {
                 ForEach(stops, id: \.self) { idx in
                     if items.indices.contains(idx) {
-                        AccessibilityRotorEntry(Text(rotorLabel(idx)), id: items[idx].id, in: rotorNamespace)
+                        let id = items[idx].id
+                        // `prepare` scrolls the target into view so the lazy List
+                        // realizes the row — otherwise VoiceOver can't land on it.
+                        AccessibilityRotorEntry(Text(rotorLabel(idx)), id: id, in: rotorNamespace) {
+                            proxy.scrollTo(id, anchor: .center)
+                        }
                     }
                 }
             })
