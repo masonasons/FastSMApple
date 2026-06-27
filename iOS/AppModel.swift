@@ -115,6 +115,29 @@ final class AppModel {
         await accountStore.load()
         rebuildTimelines()
         await loadLists()
+        enablePush()
+    }
+
+    // MARK: Push notifications
+
+    /// Ask for notification permission and register for APNs. When the token
+    /// arrives, PushManager calls back into `syncPush`.
+    func enablePush() {
+        PushManager.shared.onTokenChanged = { [weak self] in self?.syncPush() }
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
+            guard granted else { return }
+            Task { @MainActor in UIApplication.shared.registerForRemoteNotifications() }
+        }
+        syncPush()   // in case the token is already known from a previous launch
+    }
+
+    /// Register a push subscription for every push-capable account.
+    func syncPush() {
+        guard let endpoint = PushManager.shared.endpoint() else { return }
+        for account in accountStore.accounts where account.supportsPush {
+            let keys = PushManager.shared.keys(for: account.accountKey)
+            Task { try? await account.registerPushSubscription(endpoint: endpoint, keys: keys, alerts: .default) }
+        }
     }
 
     func rebuildTimelines() {

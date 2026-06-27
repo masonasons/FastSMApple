@@ -272,6 +272,16 @@ public protocol SocialAccount: AnyObject, Sendable {
     func setBoostsHidden(_ hidden: Bool, for userID: String) async throws
     /// The relationships to a set of accounts, for labeling actions.
     func relationships(for userIDs: [String]) async throws -> [Relationship]
+
+    // MARK: Push
+
+    /// Whether this account can deliver push notifications (Mastodon Web Push).
+    var supportsPush: Bool { get }
+    /// Register (or replace) a Web Push subscription so the server pushes to the
+    /// given relay endpoint with the given keys and alert types.
+    func registerPushSubscription(endpoint: URL, keys: WebPushKeys, alerts: PushAlerts) async throws
+    /// Remove the current push subscription, if any.
+    func removePushSubscription() async throws
 }
 
 public extension SocialAccount {
@@ -287,6 +297,12 @@ public extension SocialAccount {
     func unblock(_ userID: String) async throws { throw PlatformError.message("Unblocking isn't supported here.") }
     func setBoostsHidden(_ hidden: Bool, for userID: String) async throws { throw PlatformError.message("Hiding boosts isn't supported here.") }
     func relationships(for userIDs: [String]) async throws -> [Relationship] { [] }
+
+    var supportsPush: Bool { false }
+    func registerPushSubscription(endpoint: URL, keys: WebPushKeys, alerts: PushAlerts) async throws {
+        throw PlatformError.message("Push isn't supported here.")
+    }
+    func removePushSubscription() async throws {}
 
     /// Dispatch a `UserAction` to the matching method.
     func perform(_ action: UserAction, on userID: String) async throws {

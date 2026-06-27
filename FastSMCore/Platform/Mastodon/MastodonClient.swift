@@ -377,6 +377,28 @@ public struct MastodonClient: Sendable {
         _ = try await http.data(for: authorizedRequest(path: "api/v1/accounts/\(id)/unblock", method: .post))
     }
 
+    public func subscribePush(endpoint: URL, p256dh: String, auth: String, alerts: PushAlerts) async throws {
+        let form: [(String, String)] = [
+            ("subscription[endpoint]", endpoint.absoluteString),
+            ("subscription[keys][p256dh]", p256dh),
+            ("subscription[keys][auth]", auth),
+            ("data[alerts][mention]", alerts.mention ? "true" : "false"),
+            ("data[alerts][reblog]", alerts.reblog ? "true" : "false"),
+            ("data[alerts][favourite]", alerts.favourite ? "true" : "false"),
+            ("data[alerts][follow]", alerts.follow ? "true" : "false"),
+            ("data[alerts][poll]", alerts.poll ? "true" : "false"),
+            ("data[alerts][status]", alerts.status ? "true" : "false"),
+        ]
+        var request = authorizedRequest(path: "api/v1/push/subscription", method: .post)
+        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        request.httpBody = HTTP.orderedFormBody(form)
+        _ = try await http.data(for: request)
+    }
+
+    public func unsubscribePush() async throws {
+        _ = try? await http.data(for: authorizedRequest(path: "api/v1/push/subscription", method: .delete))
+    }
+
     public func relationships(ids: [String]) async throws -> [Relationship] {
         guard !ids.isEmpty else { return [] }
         let query = ids.map { URLQueryItem(name: "id[]", value: $0) }

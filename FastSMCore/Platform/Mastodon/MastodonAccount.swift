@@ -176,4 +176,12 @@ public final class MastodonAccount: SocialAccount, @unchecked Sendable {
     public func relationships(for userIDs: [String]) async throws -> [Relationship] {
         try await client.relationships(ids: userIDs)
     }
+
+    public var supportsPush: Bool { true }
+    public func registerPushSubscription(endpoint: URL, keys: WebPushKeys, alerts: PushAlerts) async throws {
+        try await client.subscribePush(endpoint: endpoint, p256dh: keys.p256dh, auth: keys.auth, alerts: alerts)
+    }
+    public func removePushSubscription() async throws {
+        try await client.unsubscribePush()
+    }
 }

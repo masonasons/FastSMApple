@@ -7,11 +7,27 @@
 //
 
 import SwiftUI
+import UIKit
 import FastSMCore
+
+/// Receives the APNs device token and hands it to PushManager.
+final class PushAppDelegate: NSObject, UIApplicationDelegate {
+    func application(_ application: UIApplication,
+                     didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        let hex = deviceToken.map { String(format: "%02x", $0) }.joined()
+        Task { @MainActor in PushManager.shared.setDeviceToken(hex) }
+    }
+
+    func application(_ application: UIApplication,
+                     didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        NSLog("Push registration failed: \(error.localizedDescription)")
+    }
+}
 
 @main
 struct FastSMApp: App {
     @State private var model = AppModel()
+    @UIApplicationDelegateAdaptor(PushAppDelegate.self) private var pushDelegate
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
