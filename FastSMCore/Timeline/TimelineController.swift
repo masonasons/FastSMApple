@@ -288,7 +288,9 @@ public final class TimelineController {
 
     // MARK: Actions
 
-    public func toggleFavorite(at index: Int) async {
+    /// Returns true if the favorite/unfavorite actually went through.
+    @discardableResult
+    public func toggleFavorite(at index: Int) async -> Bool {
         await toggle(
             at: index,
             current: { $0.actionableStatus?.favourited ?? false },
@@ -299,7 +301,9 @@ public final class TimelineController {
         )
     }
 
-    public func toggleBoost(at index: Int) async {
+    /// Returns true if the boost/unboost actually went through.
+    @discardableResult
+    public func toggleBoost(at index: Int) async -> Bool {
         await toggle(
             at: index,
             current: { $0.actionableStatus?.boosted ?? false },
@@ -359,14 +363,17 @@ public final class TimelineController {
 
     // MARK: Internals
 
+    /// Returns whether the remote action succeeded, so callers can defer success
+    /// feedback (earcons) until it's actually gone through.
+    @discardableResult
     private func toggle(
         at index: Int,
         current: (TimelineItem) -> Bool,
         optimistic: (inout TimelineItem, Bool) -> Void,
         perform: (any SocialAccount, String, Bool) async throws -> Void
-    ) async {
+    ) async -> Bool {
         guard let account, items.indices.contains(index),
-              let actionable = items[index].actionableStatus else { return }
+              let actionable = items[index].actionableStatus else { return false }
         let newValue = !current(items[index])
 
         optimistic(&items[index], newValue)
@@ -376,12 +383,14 @@ public final class TimelineController {
             // Remote-instance posts need resolving to a local id first.
             let targetID = (try await account.resolve(actionable)).id
             try await perform(account, targetID, newValue)
+            return true
         } catch {
             if items.indices.contains(index) {
                 optimistic(&items[index], !newValue)
                 onChange?()
             }
             onError?(error)
+            return false
         }
     }
 

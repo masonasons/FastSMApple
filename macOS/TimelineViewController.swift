@@ -217,10 +217,13 @@ final class TimelineViewController: NSViewController {
         let row = tableView.selectedRow
         guard row >= 0, let status = selectedItem?.actionableStatus else { return }
         let boosting = !status.boosted
-        let act = { [weak self] in
-            // FastSM has no un-repost sound; only cue when boosting.
-            if boosting { self?.services.playEarcon(.boost) }
-            Task { await self?.services.selectedController?.toggleBoost(at: row) }
+        let act: () -> Void = { [weak self] in
+            Task {
+                // Cue only once the boost has actually gone through (and never for un-repost).
+                if await self?.services.selectedController?.toggleBoost(at: row) == true, boosting {
+                    self?.services.playEarcon(.boost)
+                }
+            }
         }
         if boosting, services.settings.settings.confirmBoost {
             confirm(message: "Boost this post?", confirmTitle: "Boost", perform: act)
@@ -231,9 +234,13 @@ final class TimelineViewController: NSViewController {
         let row = tableView.selectedRow
         guard row >= 0, let status = selectedItem?.actionableStatus else { return }
         let favoriting = !status.favourited
-        let act = { [weak self] in
-            self?.services.playEarcon(favoriting ? .favorite : .unfavorite)
-            Task { await self?.services.selectedController?.toggleFavorite(at: row) }
+        let act: () -> Void = { [weak self] in
+            Task {
+                // Cue only once the favorite/unfavorite has actually gone through.
+                if await self?.services.selectedController?.toggleFavorite(at: row) == true {
+                    self?.services.playEarcon(favoriting ? .favorite : .unfavorite)
+                }
+            }
         }
         if favoriting, services.settings.settings.confirmFavorite {
             confirm(message: "Favorite this post?", confirmTitle: "Favorite", perform: act)

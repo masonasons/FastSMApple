@@ -370,14 +370,17 @@ final class AppModel {
 
     func toggleFavorite(key: String, index: Int) async {
         let current = items(forKey: key)[safe: index]?.actionableStatus?.favourited ?? false
-        playEarcon(current ? .unfavorite : .favorite, timeline: key)
-        await controllers[key]?.toggleFavorite(at: index)
+        // Play the earcon only once the action has actually gone through.
+        if await controllers[key]?.toggleFavorite(at: index) == true {
+            playEarcon(current ? .unfavorite : .favorite, timeline: key)
+        }
     }
 
     func toggleBoost(key: String, index: Int) async {
         let current = items(forKey: key)[safe: index]?.actionableStatus?.boosted ?? false
-        if !current { playEarcon(.boost, timeline: key) }
-        await controllers[key]?.toggleBoost(at: index)
+        if await controllers[key]?.toggleBoost(at: index) == true, !current {
+            playEarcon(.boost, timeline: key)
+        }
     }
 
     // MARK: User actions
