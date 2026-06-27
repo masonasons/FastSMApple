@@ -298,6 +298,9 @@ struct TimelinePageView: View {
                     .accessibilityActions { PostActions(item: item, ref: ref, index: index, reversed: true) }
                     .task { await model.loadOlderIfNeeded(key: ref.key, index: index) }
                 }
+                if !items.isEmpty, model.hasMore(key: ref.key) {
+                    loadMoreFooter
+                }
             }
         }
         .refreshable { await model.refresh(key: ref.key) }
@@ -341,6 +344,20 @@ struct TimelinePageView: View {
     private func rotorLabel(_ idx: Int) -> String {
         guard items.indices.contains(idx), let s = items[idx].actionableStatus else { return "Post" }
         return "\(s.account.bestName): \(s.text.prefix(60))"
+    }
+
+    /// A bottom footer that loads the next page when it scrolls into view, and
+    /// shows progress — a reliable load-more trigger in a ScrollView/LazyVStack.
+    private var loadMoreFooter: some View {
+        HStack(spacing: 8) {
+            ProgressView()
+            Text("Loading more…")
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 16)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Loading more posts")
+        .onAppear { Task { await model.loadOlder(key: ref.key) } }
     }
 
     private func restoreScrollOnce(_ proxy: ScrollViewProxy) {

@@ -324,6 +324,10 @@ final class AppModel {
         if index >= count - 5 { await controllers[key]?.loadOlder() }
     }
 
+    func loadOlder(key: String) async { await controllers[key]?.loadOlder() }
+    func isLoading(key: String) -> Bool { controllers[key]?.isLoading ?? false }
+    func hasMore(key: String) -> Bool { controllers[key]?.hasMore ?? false }
+
     func toggleFavorite(key: String, index: Int) async {
         let current = items(forKey: key)[safe: index]?.actionableStatus?.favourited ?? false
         playEarcon(current ? .unfavorite : .favorite, timeline: key)

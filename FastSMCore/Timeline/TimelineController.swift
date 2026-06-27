@@ -72,6 +72,8 @@ public final class TimelineController {
     private var account: (any SocialAccount)?
     private var source: TimelineSource = .home
     private var nextCursor: PageCursor?
+    /// Whether there's a known next page to load (drives the UI's load-more footer).
+    public var hasMore: Bool { nextCursor != nil }
     private let pageSize: Int
     private let cache: TimelineCache?
 

@@ -677,6 +677,12 @@ extension TimelineViewController: NSTableViewDataSource, NSTableViewDelegate {
         let label = item.accessibilityLabel(demojify: demojify)
         cell.setAccessibilityLabel(label)
         cell.textField?.setAccessibilityLabel(label)
+        // Load more when a near-bottom row is realized (i.e. scrolled/VoiceOver-
+        // navigated into view). Selection-change alone misses VoiceOver cursor
+        // movement, which doesn't change the table's selectedRow.
+        if row >= items.count - 5 {
+            Task { await services.selectedController?.loadOlder() }
+        }
         return cell
     }
 
