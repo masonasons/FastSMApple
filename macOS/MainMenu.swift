@@ -60,6 +60,10 @@ enum MainMenu {
         boost.keyEquivalentModifierMask = [.command, .shift]
         let favorite = statusMenu.addItem(withTitle: "Favorite", action: #selector(TimelineViewController.favoriteSelection(_:)), keyEquivalent: "d")
         favorite.keyEquivalentModifierMask = [.command, .shift]
+        // Also the plain `m` single-key shortcut in the timeline; ⌘⇧M here avoids
+        // clashing with the standard ⌘M (Minimize).
+        let bookmark = statusMenu.addItem(withTitle: "Bookmark", action: #selector(TimelineViewController.bookmarkSelection(_:)), keyEquivalent: "m")
+        bookmark.keyEquivalentModifierMask = [.command, .shift]
         let quote = statusMenu.addItem(withTitle: "Quote", action: #selector(TimelineViewController.quoteSelection(_:)), keyEquivalent: "q")
         quote.keyEquivalentModifierMask = [.command, .shift]
         statusMenu.addItem(withTitle: "Post Info…", action: #selector(TimelineViewController.showPostInfo(_:)), keyEquivalent: "i")

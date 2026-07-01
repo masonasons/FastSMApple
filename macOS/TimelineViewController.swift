@@ -247,6 +247,19 @@ final class TimelineViewController: NSViewController {
         } else { act() }
     }
 
+    @objc func bookmarkSelection(_ sender: Any?) {
+        let row = tableView.selectedRow
+        guard row >= 0, let status = selectedItem?.actionableStatus,
+              currentAccount?.features.bookmarks == true else { return }
+        let bookmarking = !status.bookmarked
+        Task { [weak self] in
+            // Cue only once the bookmark/unbookmark has actually gone through.
+            if await self?.services.selectedController?.toggleBookmark(at: row) == true {
+                self?.services.playEarcon(bookmarking ? .bookmark : .unbookmark)
+            }
+        }
+    }
+
     @objc func clearTimeline(_ sender: Any?) {
         let act = { [weak self] in
             guard let self else { return }
@@ -513,6 +526,9 @@ final class TimelineViewController: NSViewController {
             add("Reply", #selector(replyToSelection(_:)))
             add(status.boosted ? "Unboost" : "Boost", #selector(boostSelection(_:)))
             add(status.favourited ? "Unfavorite" : "Favorite", #selector(favoriteSelection(_:)))
+            if currentAccount?.features.bookmarks == true {
+                add(status.bookmarked ? "Remove Bookmark" : "Bookmark", #selector(bookmarkSelection(_:)))
+            }
             add("Quote", #selector(quoteSelection(_:)))
             if canEditSelection { add("Edit", #selector(editSelection(_:))) }
             menu.addItem(.separator())
@@ -546,6 +562,7 @@ final class TimelineViewController: NSViewController {
         case "b", "B": boostSelection(nil); return true
         case "q", "Q": quoteSelection(nil); return true
         case "f", "F": favoriteSelection(nil); return true
+        case "m", "M": bookmarkSelection(nil); return true
         case "e", "E": editSelection(nil); return true
         case "u", "U": openUserTimelineForSelection(nil); return true
         default: return false
