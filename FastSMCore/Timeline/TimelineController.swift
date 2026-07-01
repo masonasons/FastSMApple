@@ -341,6 +341,19 @@ public final class TimelineController {
         )
     }
 
+    /// Returns true if the bookmark/unbookmark actually went through.
+    @discardableResult
+    public func toggleBookmark(at index: Int) async -> Bool {
+        await toggle(
+            at: index,
+            current: { $0.actionableStatus?.bookmarked ?? false },
+            optimistic: { $0.setBookmarked($1) },
+            perform: { account, id, value in
+                if value { try await account.bookmark(id) } else { try await account.unbookmark(id) }
+            }
+        )
+    }
+
     @discardableResult
     public func post(_ draft: PostDraft) async throws -> Status? {
         guard let account else { throw PlatformError.notAuthenticated }

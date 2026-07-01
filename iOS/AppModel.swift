@@ -372,7 +372,14 @@ final class AppModel {
 
     // MARK: Actions (per timeline)
 
-    func refresh(key: String) async { await controllers[key]?.refresh() }
+    func refresh(key: String) async {
+        guard let controller = controllers[key] else { return }
+        // Run the refresh in an independent task so a cancelled pull-to-refresh
+        // gesture (SwiftUI tears down the .refreshable task when the paged TabView
+        // re-renders or a stream update lands) doesn't abort the network load and
+        // leave it looking like pull-to-refresh does nothing.
+        await Task { await controller.refresh() }.value
+    }
 
     func loadOlderIfNeeded(key: String, index: Int) async {
         let count = items(forKey: key).count
@@ -395,6 +402,13 @@ final class AppModel {
         let current = items(forKey: key)[safe: index]?.actionableStatus?.boosted ?? false
         if await controllers[key]?.toggleBoost(at: index) == true, !current {
             playEarcon(.boost, timeline: key)
+        }
+    }
+
+    func toggleBookmark(key: String, index: Int) async {
+        let current = items(forKey: key)[safe: index]?.actionableStatus?.bookmarked ?? false
+        if await controllers[key]?.toggleBookmark(at: index) == true {
+            playEarcon(current ? .unbookmark : .bookmark, timeline: key)
         }
     }
 

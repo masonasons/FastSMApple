@@ -65,6 +65,8 @@ public struct Status: Identifiable, Codable, Sendable, Hashable {
     public var favourited: Bool
     /// Whether the current user has boosted this status.
     public var boosted: Bool
+    /// Whether the current user has bookmarked this status.
+    public var bookmarked: Bool
 
     /// Posting client/source app, e.g. "FastSM for Mac" (Mastodon, when present).
     public var applicationName: String?
@@ -99,6 +101,7 @@ public struct Status: Identifiable, Codable, Sendable, Hashable {
         pinned: Bool = false,
         favourited: Bool = false,
         boosted: Bool = false,
+        bookmarked: Bool = false,
         applicationName: String? = nil,
         platform: Platform
     ) {
@@ -124,6 +127,7 @@ public struct Status: Identifiable, Codable, Sendable, Hashable {
         self.pinned = pinned
         self.favourited = favourited
         self.boosted = boosted
+        self.bookmarked = bookmarked
         self.applicationName = applicationName
         self.platform = platform
     }
@@ -161,6 +165,12 @@ public struct Status: Identifiable, Codable, Sendable, Hashable {
             status.boosted = value
             status.boostsCount = max(0, status.boostsCount + (value ? 1 : -1))
         }
+    }
+
+    /// Optimistically set the bookmarked state on the displayed status.
+    /// (Bookmarks have no public count.)
+    public mutating func setBookmarked(_ value: Bool) {
+        mutateDisplay { status in status.bookmarked = value }
     }
 
     private mutating func mutateDisplay(_ body: (inout Status) -> Void) {

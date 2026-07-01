@@ -105,6 +105,7 @@ final class MastodonStatusDTO: Decodable {
     let pinned: Bool?
     let favourited: Bool?
     let reblogged: Bool?
+    let bookmarked: Bool?
     let application: MastodonApplicationDTO?
     /// Plaintext source, present on deleted statuses for redraft.
     let text: String?
@@ -288,6 +289,7 @@ enum MastodonMapper {
             pinned: dto.pinned ?? false,
             favourited: dto.favourited ?? false,
             boosted: dto.reblogged ?? false,
+            bookmarked: dto.bookmarked ?? false,
             applicationName: dto.application?.name,
             platform: .mastodon
         )

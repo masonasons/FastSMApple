@@ -663,6 +663,9 @@ struct PostActions: View {
                 list.append(Action(title: "Reply") { model.compose(replyTo: status) })
                 list.append(Action(title: status.boosted ? "Unboost" : "Boost") { Task { await model.toggleBoost(key: ref.key, index: index) } })
                 list.append(Action(title: status.favourited ? "Unfavorite" : "Favorite") { Task { await model.toggleFavorite(key: ref.key, index: index) } })
+                if ref.account.features.bookmarks {
+                    list.append(Action(title: status.bookmarked ? "Remove Bookmark" : "Bookmark") { Task { await model.toggleBookmark(key: ref.key, index: index) } })
+                }
                 list.append(Action(title: "Quote") { model.compose(quoting: status) })
                 if model.canEdit(status, in: ref) {
                     list.append(Action(title: "Edit") { model.composeRequest = ComposeRequest(editing: status) })

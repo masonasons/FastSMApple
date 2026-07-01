@@ -353,6 +353,14 @@ public struct MastodonClient: Sendable {
         _ = try await http.data(for: authorizedRequest(path: "api/v1/statuses/\(id)/unfavourite", method: .post))
     }
 
+    public func bookmark(_ id: String) async throws {
+        _ = try await http.data(for: authorizedRequest(path: "api/v1/statuses/\(id)/bookmark", method: .post))
+    }
+
+    public func unbookmark(_ id: String) async throws {
+        _ = try await http.data(for: authorizedRequest(path: "api/v1/statuses/\(id)/unbookmark", method: .post))
+    }
+
     // MARK: User actions
 
     /// Follow an account. Pass `reblogs` to also set boost visibility.

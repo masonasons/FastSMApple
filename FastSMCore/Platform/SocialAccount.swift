@@ -21,6 +21,8 @@ public struct PlatformFeatures: Sendable, Equatable {
     public var mediaAttachments: Bool = false
     public var scheduling: Bool = false
     public var editing: Bool = false
+    /// Bookmarking a post (Mastodon).
+    public var bookmarks: Bool = false
     /// Per-account boost/reblog hiding (Mastodon `follow` with reblogs:false).
     public var hideBoosts: Bool = false
 
@@ -259,6 +261,8 @@ public protocol SocialAccount: AnyObject, Sendable {
     func unboost(_ statusID: String) async throws
     func favorite(_ statusID: String) async throws
     func unfavorite(_ statusID: String) async throws
+    func bookmark(_ statusID: String) async throws
+    func unbookmark(_ statusID: String) async throws
 
     // MARK: User actions
 

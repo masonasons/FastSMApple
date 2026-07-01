@@ -35,6 +35,7 @@ public final class MastodonAccount: SocialAccount, @unchecked Sendable {
         features.scheduling = true
         features.editing = true
         features.hideBoosts = true
+        features.bookmarks = true
         self.features = features
     }
 
@@ -163,6 +164,8 @@ public final class MastodonAccount: SocialAccount, @unchecked Sendable {
     public func unboost(_ statusID: String) async throws { try await client.unreblog(statusID) }
     public func favorite(_ statusID: String) async throws { try await client.favourite(statusID) }
     public func unfavorite(_ statusID: String) async throws { try await client.unfavourite(statusID) }
+    public func bookmark(_ statusID: String) async throws { try await client.bookmark(statusID) }
+    public func unbookmark(_ statusID: String) async throws { try await client.unbookmark(statusID) }
 
     public func follow(_ userID: String) async throws { try await client.follow(userID) }
     public func unfollow(_ userID: String) async throws { try await client.unfollow(userID) }

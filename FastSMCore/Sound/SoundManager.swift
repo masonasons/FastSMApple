@@ -20,6 +20,8 @@ public enum Earcon: String, Sendable, CaseIterable {
     case boost
     case favorite
     case unfavorite
+    case bookmark
+    case unbookmark
     case close          // closing/dismissing a timeline
     case delete         // clearing/deleting content
     case refresh
@@ -35,6 +37,8 @@ public enum Earcon: String, Sendable, CaseIterable {
         case .boost: return "send_repost"
         case .favorite: return "like"
         case .unfavorite: return "unlike"
+        case .bookmark: return "bookmark"       // silent if a soundpack lacks it
+        case .unbookmark: return "unbookmark"
         case .close: return "close"
         case .delete: return "delete"
         case .refresh: return "ready"       // FastSM plays "ready" when a timeline loads

@@ -84,4 +84,19 @@ public enum TimelineItem: Identifiable, Codable, Sendable, Hashable {
             break
         }
     }
+
+    public mutating func setBookmarked(_ value: Bool) {
+        switch self {
+        case .status(var status):
+            status.setBookmarked(value)
+            self = .status(status)
+        case .notification(var notification):
+            guard var status = notification.status else { return }
+            status.setBookmarked(value)
+            notification.status = status
+            self = .notification(notification)
+        case .user:
+            break
+        }
+    }
 }

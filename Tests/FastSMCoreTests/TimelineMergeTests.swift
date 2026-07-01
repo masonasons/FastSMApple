@@ -71,6 +71,9 @@ private final class MockAccount: SocialAccount, @unchecked Sendable {
     func unboost(_ id: String) async throws {}
     func favorite(_ id: String) async throws {}
     func unfavorite(_ id: String) async throws {}
+    var bookmarkCalls: [(id: String, on: Bool)] = []
+    func bookmark(_ id: String) async throws { bookmarkCalls.append((id, true)) }
+    func unbookmark(_ id: String) async throws { bookmarkCalls.append((id, false)) }
 }
 
 @MainActor
@@ -161,6 +164,28 @@ final class TimelineMergeTests: XCTestCase {
         account.throwOnFetch = URLError(.cancelled)
         await controller.refresh()
         XCTAssertNil(reported, "a cancelled URL request must not be reported")
+    }
+
+    // Bookmarking toggles the status's bookmarked flag optimistically and calls
+    // the account, mirroring favorite/boost.
+    func testToggleBookmark() async {
+        let user = User(id: "u", acct: "u", username: "u", displayName: "u", platform: .mastodon)
+        let statuses = [Status(id: "s0", account: user, text: "0",
+                               createdAt: Date(timeIntervalSince1970: 0), platform: .mastodon)]
+        let account = MockAccount(all: statuses)
+        let controller = TimelineController(pageSize: 4)
+        controller.setTimeline(account: account, source: .home)
+        await controller.refresh()
+
+        XCTAssertEqual(controller.items.first?.actionableStatus?.bookmarked, false)
+        let ok = await controller.toggleBookmark(at: 0)
+        XCTAssertTrue(ok)
+        XCTAssertEqual(controller.items.first?.actionableStatus?.bookmarked, true)
+        XCTAssertEqual(account.bookmarkCalls.map(\.on), [true])
+
+        _ = await controller.toggleBookmark(at: 0)
+        XCTAssertEqual(controller.items.first?.actionableStatus?.bookmarked, false)
+        XCTAssertEqual(account.bookmarkCalls.map(\.on), [true, false])
     }
 
     // Control: genuine failures must still reach onError — the cancellation guard

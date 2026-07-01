@@ -151,6 +151,10 @@ public final class BlueskyAccount: SocialAccount, @unchecked Sendable {
     public func unboost(_ statusID: String) async throws { try await client.unrepost(statusID: statusID) }
     public func favorite(_ statusID: String) async throws { try await client.like(statusID: statusID) }
     public func unfavorite(_ statusID: String) async throws { try await client.unlike(statusID: statusID) }
+    // Bluesky has no bookmarks; `features.bookmarks` stays false so the UI never
+    // offers it, but the protocol still needs these.
+    public func bookmark(_ statusID: String) async throws { throw PlatformError.message("Bookmarks aren't supported on Bluesky.") }
+    public func unbookmark(_ statusID: String) async throws { throw PlatformError.message("Bookmarks aren't supported on Bluesky.") }
 
     public func follow(_ userID: String) async throws { try await client.follow(did: userID) }
     public func unfollow(_ userID: String) async throws { try await client.unfollow(did: userID) }
