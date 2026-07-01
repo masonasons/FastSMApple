@@ -55,27 +55,31 @@ enum MainMenu {
         mainMenu.addItem(statusItem)
         let statusMenu = NSMenu(title: "Status")
         statusItem.submenu = statusMenu
-        statusMenu.addItem(withTitle: "Reply", action: #selector(TimelineViewController.replyToSelection(_:)), keyEquivalent: "")
-        let boost = statusMenu.addItem(withTitle: "Boost", action: #selector(TimelineViewController.boostSelection(_:)), keyEquivalent: "b")
-        boost.keyEquivalentModifierMask = [.command, .shift]
-        let favorite = statusMenu.addItem(withTitle: "Favorite", action: #selector(TimelineViewController.favoriteSelection(_:)), keyEquivalent: "d")
-        favorite.keyEquivalentModifierMask = [.command, .shift]
-        // Also the plain `m` single-key shortcut in the timeline; ⌘⇧M here avoids
-        // clashing with the standard ⌘M (Minimize).
-        let bookmark = statusMenu.addItem(withTitle: "Bookmark", action: #selector(TimelineViewController.bookmarkSelection(_:)), keyEquivalent: "m")
-        bookmark.keyEquivalentModifierMask = [.command, .shift]
-        let quote = statusMenu.addItem(withTitle: "Quote", action: #selector(TimelineViewController.quoteSelection(_:)), keyEquivalent: "q")
-        quote.keyEquivalentModifierMask = [.command, .shift]
-        statusMenu.addItem(withTitle: "Post Info…", action: #selector(TimelineViewController.showPostInfo(_:)), keyEquivalent: "i")
-        statusMenu.addItem(withTitle: "View Thread", action: #selector(TimelineViewController.viewThread(_:)), keyEquivalent: "")
+        // Surface the timeline's actual single-key shortcuts here so they're
+        // discoverable and read out by VoiceOver. Plain-letter / Space equivalents
+        // are safe: the main window has no text fields, and every item auto-disables
+        // while a sheet or dialog (compose, prompts) is key.
+        func addStatusItem(_ title: String, _ action: Selector, _ key: String,
+                           _ mask: NSEvent.ModifierFlags = []) {
+            let mi = statusMenu.addItem(withTitle: title, action: action, keyEquivalent: key)
+            mi.keyEquivalentModifierMask = mask
+        }
+        addStatusItem("Reply", #selector(TimelineViewController.replyToSelection(_:)), "r")
+        addStatusItem("Boost", #selector(TimelineViewController.boostSelection(_:)), "b")
+        addStatusItem("Favorite", #selector(TimelineViewController.favoriteSelection(_:)), "f")
+        addStatusItem("Bookmark", #selector(TimelineViewController.bookmarkSelection(_:)), "m")
+        addStatusItem("Quote", #selector(TimelineViewController.quoteSelection(_:)), "q")
+        addStatusItem("Edit", #selector(TimelineViewController.editSelection(_:)), "e")
         statusMenu.addItem(.separator())
-        // Open User Timeline is also the plain `u` single-key shortcut; the menu
-        // item is for discoverability and exposes no command-key equivalent.
-        statusMenu.addItem(withTitle: "Open User Timeline", action: #selector(TimelineViewController.openUserTimelineForSelection(_:)), keyEquivalent: "")
-        let profile = statusMenu.addItem(withTitle: "Open User Profile", action: #selector(TimelineViewController.openUserProfileForSelection(_:)), keyEquivalent: "u")
-        profile.keyEquivalentModifierMask = [.command]
+        addStatusItem("View Thread", #selector(TimelineViewController.viewThread(_:)), " ")
+        addStatusItem("Open Link…", #selector(TimelineViewController.openLinksForSelection(_:)), "\r", [.command])
+        addStatusItem("View Media…", #selector(TimelineViewController.playMediaForSelection(_:)), "\r", [.shift])
+        addStatusItem("Post Info…", #selector(TimelineViewController.showPostInfo(_:)), "i", [.command])
         statusMenu.addItem(.separator())
-        statusMenu.addItem(withTitle: "Open in Browser", action: #selector(TimelineViewController.openSelectionInBrowser(_:)), keyEquivalent: "")
+        addStatusItem("Open User Timeline", #selector(TimelineViewController.openUserTimelineForSelection(_:)), "u")
+        addStatusItem("Open User Profile", #selector(TimelineViewController.openUserProfileForSelection(_:)), "u", [.command])
+        statusMenu.addItem(.separator())
+        addStatusItem("Open in Browser", #selector(TimelineViewController.openSelectionInBrowser(_:)), "")
 
         // Timeline menu
         let timelineItem = NSMenuItem()
