@@ -95,7 +95,9 @@ struct AddAccountView: View {
             }
             dismiss()
         } catch {
-            presentedError = ErrorPresenter.present(error, context: "Adding an account")
+            if !error.isCancellation {
+                presentedError = ErrorPresenter.present(error, context: "Adding an account")
+            }
         }
     }
 }

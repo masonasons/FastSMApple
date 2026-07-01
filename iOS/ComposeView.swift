@@ -212,7 +212,9 @@ struct ComposeView: View {
             try await model.post(draft)
             dismiss()
         } catch {
-            presentedError = ErrorPresenter.present(error, context: isEditing ? "Saving an edited post" : "Posting a status")
+            if !error.isCancellation {
+                presentedError = ErrorPresenter.present(error, context: isEditing ? "Saving an edited post" : "Posting a status")
+            }
         }
     }
 }

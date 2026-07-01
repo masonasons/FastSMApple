@@ -84,4 +84,14 @@ final class ErrorPresentationTests: XCTestCase {
         XCTAssertNil(ErrorPresenter.serverMessage(from: "Bad Gateway"))
         XCTAssertNil(ErrorPresenter.serverMessage(from: ""))
     }
+
+    func testCancellationDetection() {
+        XCTAssertTrue(CancellationError().isCancellation)
+        XCTAssertTrue(URLError(.cancelled).isCancellation)
+        XCTAssertTrue((URLError(.cancelled) as Error).isCancellation)
+        // A real failure is not a cancellation.
+        XCTAssertFalse(URLError(.timedOut).isCancellation)
+        XCTAssertFalse(PlatformError.network("offline").isCancellation)
+        XCTAssertFalse(PlatformError.http(status: 500, body: "").isCancellation)
+    }
 }

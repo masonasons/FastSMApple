@@ -264,6 +264,9 @@ public final class TimelineController {
             if newItemCount > 0 { onReceivedNewItems?(newItemCount) }
             await applyHomeMarkerIfNeeded()
         } catch {
+            // A cancelled refresh (superseded by a newer one, or interrupted by a
+            // live stream update re-rendering the view) is not a failure.
+            if error.isCancellation { return }
             onError?(error)
         }
     }
@@ -305,6 +308,7 @@ public final class TimelineController {
             onChange?()
             persistToCache()
         } catch {
+            if error.isCancellation { return }
             onError?(error)
         }
     }

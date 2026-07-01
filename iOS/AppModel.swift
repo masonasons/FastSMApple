@@ -507,6 +507,7 @@ final class AppModel {
         sound.setSoundpack(directory: AppModel.soundpackDirectory(named: settings.settings.soundpack))
     }
     private func report(_ error: Error, context: String? = nil) {
+        guard !error.isCancellation else { return }
         sound.play(.error)
         presentedError = ErrorPresenter.present(error, context: context)
     }

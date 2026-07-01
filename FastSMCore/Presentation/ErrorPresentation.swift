@@ -23,6 +23,19 @@ public struct PresentedError: Sendable, Equatable {
     }
 }
 
+public extension Error {
+    /// True when this error just means the work was cancelled — Swift task
+    /// cancellation or a cancelled URL request. This is expected control flow
+    /// (a superseded refresh, a view that went away, a stream that already
+    /// delivered the data) and must never be surfaced as a failure.
+    var isCancellation: Bool {
+        if self is CancellationError { return true }
+        if let urlError = self as? URLError, urlError.code == .cancelled { return true }
+        let ns = self as NSError
+        return ns.domain == NSURLErrorDomain && ns.code == NSURLErrorCancelled
+    }
+}
+
 public enum ErrorPresenter {
     /// Build a `PresentedError` from any thrown error.
     /// - Parameters:

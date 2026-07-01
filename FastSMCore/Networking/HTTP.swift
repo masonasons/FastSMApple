@@ -30,6 +30,10 @@ public struct HTTP {
         do {
             (data, response) = try await session.data(for: request)
         } catch {
+            // A cancelled request isn't a failure — a newer refresh superseded it,
+            // the view went away, or the task was torn down. Preserve cancellation
+            // semantics so callers can quietly ignore it instead of alerting.
+            if error.isCancellation { throw CancellationError() }
             throw PlatformError.network(error.localizedDescription)
         }
         guard let http = response as? HTTPURLResponse else {
@@ -50,6 +54,7 @@ public struct HTTP {
         do {
             (data, response) = try await session.data(for: request)
         } catch {
+            if error.isCancellation { throw CancellationError() }
             throw PlatformError.network(error.localizedDescription)
         }
         guard let http = response as? HTTPURLResponse else {

@@ -35,10 +35,15 @@ private final class MockAccount: SocialAccount, @unchecked Sendable {
     /// timeline while a refresh awaits the network.
     var onFetch: (() -> Void)?
 
+    /// If set, `items(for:)` throws this — used to simulate a cancelled or failed
+    /// network fetch.
+    var throwOnFetch: Error?
+
     func items(for source: TimelineSource, limit: Int, cursor: PageCursor) async throws -> TimelinePage {
         callCount += 1
         lastMaxID = cursor.maxID
         onFetch?()
+        if let throwOnFetch { throw throwOnFetch }
         let start: Int
         if let maxID = cursor.maxID, let idx = all.firstIndex(where: { $0.id == maxID }) {
             start = idx + 1
@@ -130,6 +135,49 @@ final class TimelineMergeTests: XCTestCase {
         account.callCount = 0
         await controller.refresh()
         XCTAssertEqual(account.callCount, 1, "should stop once caught up to known posts")
+    }
+
+    // Regression: with streaming on, refreshes get cancelled routinely (a live
+    // stream update re-renders the view, or a newer refresh supersedes this one).
+    // A cancelled fetch must NOT be reported — it surfaced as "Network error:
+    // canceled". Fails before the isCancellation guard in refresh().
+    func testRefreshDoesNotReportCancellation() async {
+        let user = User(id: "u", acct: "u", username: "u", displayName: "u", platform: .mastodon)
+        let statuses = [Status(id: "s0", account: user, text: "0",
+                               createdAt: Date(timeIntervalSince1970: 0), platform: .mastodon)]
+        let account = MockAccount(all: statuses)
+        let controller = TimelineController(pageSize: 4)
+        controller.setTimeline(account: account, source: .home)
+
+        var reported: Error?
+        controller.onError = { reported = $0 }
+
+        account.throwOnFetch = CancellationError()
+        await controller.refresh()
+        XCTAssertNil(reported, "Swift task cancellation must not be reported")
+
+        // A cancelled URL request (the -999 the user saw) must also be swallowed.
+        reported = nil
+        account.throwOnFetch = URLError(.cancelled)
+        await controller.refresh()
+        XCTAssertNil(reported, "a cancelled URL request must not be reported")
+    }
+
+    // Control: genuine failures must still reach onError — the cancellation guard
+    // must not swallow real errors.
+    func testRefreshStillReportsRealErrors() async {
+        let user = User(id: "u", acct: "u", username: "u", displayName: "u", platform: .mastodon)
+        let statuses = [Status(id: "s0", account: user, text: "0",
+                               createdAt: Date(timeIntervalSince1970: 0), platform: .mastodon)]
+        let account = MockAccount(all: statuses)
+        let controller = TimelineController(pageSize: 4)
+        controller.setTimeline(account: account, source: .home)
+
+        var reported: Error?
+        controller.onError = { reported = $0 }
+        account.throwOnFetch = PlatformError.http(status: 500, body: "boom")
+        await controller.refresh()
+        XCTAssertNotNil(reported, "a real server error must still be reported")
     }
 
     private func shortPageController() -> (TimelineController, MockAccount) {

@@ -20,6 +20,8 @@ enum ErrorAlert {
                         sound: SoundManager? = nil,
                         in window: NSWindow?,
                         completion: (() -> Void)? = nil) {
+        // A cancelled request isn't a failure — never show it.
+        guard !error.isCancellation else { completion?(); return }
         let presented = ErrorPresenter.present(error, context: context)
         if let sound { sound.play(.error) } else { NSSound.beep() }
 
