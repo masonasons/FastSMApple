@@ -699,6 +699,7 @@ final class TimelineViewController: NSViewController {
         let controller = UserInfoWindowController(user: user, account: account) { [weak self] action in
             self?.handle(action, for: user)
         }
+        controller.sound = services.sound
         userInfoController = controller
         controller.beginSheet(for: window) { [weak self] in self?.userInfoController = nil }
     }
@@ -746,12 +747,9 @@ final class TimelineViewController: NSViewController {
         // dozens of sheets and freeze the app.
         guard !isPresentingError, let window = view.window else { return }
         isPresentingError = true
-        services.sound.play(.error)
-        let alert = NSAlert()
-        alert.messageText = "Something went wrong"
-        alert.informativeText = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-        alert.alertStyle = .warning
-        alert.beginSheetModal(for: window) { [weak self] _ in self?.isPresentingError = false }
+        ErrorAlert.present(error, sound: services.sound, in: window) { [weak self] in
+            self?.isPresentingError = false
+        }
     }
 }
 

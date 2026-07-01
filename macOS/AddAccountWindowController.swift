@@ -167,12 +167,9 @@ final class AddAccountWindowController: NSWindowController {
                 onComplete?()
                 window?.sheetParent?.endSheet(window!)
             } catch {
-                services.sound.play(.error)
                 setBusy(false)
-                let alert = NSAlert()
-                alert.messageText = "Couldn't add account"
-                alert.informativeText = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-                if let window { alert.beginSheetModal(for: window, completionHandler: nil) }
+                ErrorAlert.present(error, context: "Adding an account",
+                                   sound: services.sound, in: window)
             }
         }
     }

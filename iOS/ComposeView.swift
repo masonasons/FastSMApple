@@ -30,7 +30,7 @@ struct ComposeView: View {
     @State private var schedule = false
     @State private var scheduleDate = Date().addingTimeInterval(3600)
     @State private var isPosting = false
-    @State private var errorMessage: String?
+    @State private var presentedError: PresentedError?
 
     private var account: (any SocialAccount)? { model.selectedAccount }
     private var maxChars: Int { account?.maxChars ?? 500 }
@@ -145,11 +145,7 @@ struct ComposeView: View {
                         .disabled(!canPost)
                 }
             }
-            .alert("Couldn't post", isPresented: .constant(errorMessage != nil)) {
-                Button("OK") { errorMessage = nil }
-            } message: {
-                Text(errorMessage ?? "")
-            }
+            .errorAlert($presentedError)
             .task {
                 // Pull the exact editable source (original text + CW) for editing.
                 if let editing, let source = try? await account?.postSource(editing.id) {
@@ -216,7 +212,7 @@ struct ComposeView: View {
             try await model.post(draft)
             dismiss()
         } catch {
-            errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            presentedError = ErrorPresenter.present(error, context: isEditing ? "Saving an edited post" : "Posting a status")
         }
     }
 }

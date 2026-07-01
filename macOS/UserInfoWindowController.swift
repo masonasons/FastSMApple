@@ -20,6 +20,10 @@ final class UserInfoWindowController: NSWindowController {
     private let account: any SocialAccount
     private let onAction: (UserInfoAction) -> Void
 
+    /// Set by the presenter so a failed relationship action can play the app's
+    /// error earcon; falls back to a system beep when nil.
+    var sound: SoundManager?
+
     /// The current relationship; nil until the async fetch returns.
     private var relationship: Relationship?
 
@@ -202,10 +206,12 @@ final class UserInfoWindowController: NSWindowController {
             do {
                 try await self.account.perform(action, on: self.user.id)
             } catch {
-                NSSound.beep()
+                // Roll the optimistic change back to the server's truth, then tell
+                // the user exactly why the action failed (copyable), not just a beep.
                 self.relationship = (try? await self.account.relationships(for: [self.user.id]).first)
                     ?? Relationship(id: self.user.id)
                 self.updateActionButtons()
+                ErrorAlert.present(error, context: action.title, sound: self.sound, in: self.window)
             }
         }
     }

@@ -18,7 +18,7 @@ struct AddAccountView: View {
     @State private var handle = ""
     @State private var appPassword = ""
     @State private var isWorking = false
-    @State private var errorMessage: String?
+    @State private var presentedError: PresentedError?
 
     private var canSubmit: Bool {
         guard !isWorking else { return false }
@@ -79,11 +79,7 @@ struct AddAccountView: View {
                         .disabled(!canSubmit)
                 }
             }
-            .alert("Couldn't add account", isPresented: .constant(errorMessage != nil)) {
-                Button("OK") { errorMessage = nil }
-            } message: {
-                Text(errorMessage ?? "")
-            }
+            .errorAlert($presentedError)
         }
     }
 
@@ -99,7 +95,7 @@ struct AddAccountView: View {
             }
             dismiss()
         } catch {
-            errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            presentedError = ErrorPresenter.present(error, context: "Adding an account")
         }
     }
 }

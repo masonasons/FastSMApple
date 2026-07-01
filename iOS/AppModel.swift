@@ -71,7 +71,7 @@ final class AppModel {
     var selectedKey: String? {
         didSet { positions.selectedTimelineKey = selectedKey }
     }
-    var errorMessage: String?
+    var presentedError: PresentedError?
     var accountsVersion = 0
     /// Set to present the compose sheet (new post, reply, or quote).
     var composeRequest: ComposeRequest?
@@ -394,12 +394,20 @@ final class AppModel {
     func performUserAction(_ action: UserAction, userIDs: [String], in ref: TimelineRef) async {
         guard !userIDs.isEmpty else { return }
         var failures = 0
+        var lastError: Error?
         for id in userIDs {
-            do { try await ref.account.perform(action, on: id) } catch { failures += 1 }
+            do { try await ref.account.perform(action, on: id) } catch { failures += 1; lastError = error }
         }
         if failures > 0 {
             let n = userIDs.count
-            errorMessage = "\(action.title) failed for \(failures) of \(n) user\(n == 1 ? "" : "s")."
+            let summary = "\(action.title) failed for \(failures) of \(n) user\(n == 1 ? "" : "s")."
+            sound.play(.error)
+            if let lastError {
+                let underlying = ErrorPresenter.present(lastError, context: action.title)
+                presentedError = PresentedError(summary: summary, detail: summary + "\n\n" + underlying.detail)
+            } else {
+                presentedError = PresentedError(summary: summary, detail: summary)
+            }
         }
     }
 
@@ -498,9 +506,9 @@ final class AppModel {
         sound.enabled = settings.settings.soundsEnabled
         sound.setSoundpack(directory: AppModel.soundpackDirectory(named: settings.settings.soundpack))
     }
-    private func report(_ error: Error) {
+    private func report(_ error: Error, context: String? = nil) {
         sound.play(.error)
-        errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        presentedError = ErrorPresenter.present(error, context: context)
     }
 
     var settingsFetchPages: Int { settings.settings.fetchPages }

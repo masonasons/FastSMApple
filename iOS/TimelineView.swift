@@ -135,11 +135,7 @@ struct TimelinePagerView: View {
                 }
                 Button("Cancel", role: .cancel) { model.mediaChoices = nil }
             }
-            .alert("Something went wrong", isPresented: .constant(model.errorMessage != nil)) {
-                Button("OK") { model.errorMessage = nil }
-            } message: {
-                Text(model.errorMessage ?? "")
-            }
+            .errorAlert(Binding(get: { model.presentedError }, set: { model.presentedError = $0 }))
         }
     }
 

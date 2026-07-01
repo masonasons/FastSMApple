@@ -338,12 +338,9 @@ final class ComposeWindowController: NSWindowController, NSTextViewDelegate {
                     services.playEarcon(.postSent)
                     window?.sheetParent?.endSheet(window!)
                 } catch {
-                    services.sound.play(.error)
                     postButton.isEnabled = true
-                    let alert = NSAlert()
-                    alert.messageText = "Couldn't save"
-                    alert.informativeText = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-                    if let window { alert.beginSheetModal(for: window, completionHandler: nil) }
+                    ErrorAlert.present(error, context: "Saving an edited post",
+                                       sound: services.sound, in: window)
                 }
             }
             return
@@ -381,12 +378,9 @@ final class ComposeWindowController: NSWindowController, NSTextViewDelegate {
                 services.playEarcon(.postSent)
                 window?.sheetParent?.endSheet(window!)
             } catch {
-                services.sound.play(.error)
                 postButton.isEnabled = true
-                let alert = NSAlert()
-                alert.messageText = "Couldn't post"
-                alert.informativeText = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-                if let window { alert.beginSheetModal(for: window, completionHandler: nil) }
+                ErrorAlert.present(error, context: "Posting a status",
+                                   sound: services.sound, in: window)
             }
         }
     }
