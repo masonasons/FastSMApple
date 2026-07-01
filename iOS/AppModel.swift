@@ -219,12 +219,27 @@ final class AppModel {
     private(set) var navBackTick = 0
     func requestNavBack() { navBackTick += 1 }
 
+    /// Bumped to ask the visible timeline to jump to the top — fired when you tap
+    /// the tab you're already on.
+    private(set) var scrollTopTick = 0
+    func requestScrollToTop() { scrollTopTick += 1 }
+
     /// Boundary feedback when there's nothing left to go back to.
     func playNavBoundary(forKey key: String) { playEarcon(.boundary, timeline: key) }
 
     /// Persist any pending position changes right away (e.g. on backgrounding),
     /// so a quick close doesn't lose your spot.
     func flush() { positions.flush() }
+
+    /// Call when the app returns to the foreground. iOS suspends the streaming
+    /// WebSocket in the background and it often doesn't recover on its own — which
+    /// leaves the timeline frozen (old posts stay, nothing new arrives) until the
+    /// app is relaunched. Reconnect the stream and refresh so we catch up, which
+    /// is the useful half of a cold launch without needing one.
+    func enterForeground() {
+        restartStreaming()
+        Task { for controller in controllers.values { await controller.refresh() } }
+    }
 
     private func makeController(for ref: TimelineRef) -> TimelineController {
         let controller = TimelineController(cache: cache)

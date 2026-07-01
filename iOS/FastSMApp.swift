@@ -27,6 +27,7 @@ final class PushAppDelegate: NSObject, UIApplicationDelegate {
 @main
 struct FastSMApp: App {
     @State private var model = AppModel()
+    @State private var wasBackgrounded = false
     @UIApplicationDelegateAdaptor(PushAppDelegate.self) private var pushDelegate
     @Environment(\.scenePhase) private var scenePhase
 
@@ -37,8 +38,20 @@ struct FastSMApp: App {
                 .task { await model.bootstrap() }
         }
         .onChange(of: scenePhase) { _, phase in
-            // Flush the saved position when leaving the foreground.
-            if phase != .active { model.flush() }
+            switch phase {
+            case .active:
+                // Returning from the background: the streaming socket was likely
+                // suspended, so reconnect and refresh to catch up.
+                if wasBackgrounded {
+                    wasBackgrounded = false
+                    model.enterForeground()
+                }
+            case .background:
+                wasBackgrounded = true
+                model.flush()   // save position when leaving the foreground
+            default:
+                model.flush()
+            }
         }
     }
 }
