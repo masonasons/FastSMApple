@@ -327,6 +327,10 @@ struct TimelinePageView: View {
         .onChange(of: model.navBackTick) { _, _ in
             if model.selectedKey == ref.key { goBack(proxy) }
         }
+        // Tapping the already-selected tab jumps this timeline to the top.
+        .onChange(of: model.scrollTopTick) { _, _ in
+            if model.selectedKey == ref.key { scrollToTop(proxy) }
+        }
     }
 
     /// Step back to the previous position in this timeline's navigation history,
@@ -339,6 +343,13 @@ struct TimelinePageView: View {
         isRestoringFocus = true
         proxy.scrollTo(target, anchor: .center)
         focusedID = target
+    }
+
+    /// Jump to the top of this timeline, moving VoiceOver focus to the first post.
+    private func scrollToTop(_ proxy: ScrollViewProxy) {
+        guard let firstID = items.first?.id else { return }
+        proxy.scrollTo(firstID, anchor: .top)
+        focusedID = firstID
     }
 
     /// Add one VoiceOver rotor per enabled movement unit; each rotor's entries
@@ -543,7 +554,13 @@ struct TimelineTabBar: View {
                 ForEach(model.visibleRefs) { ref in
                     let selected = model.selectedKey == ref.key
                     Button {
-                        model.selectedKey = ref.key
+                        // Tapping the tab you're already on jumps to the top;
+                        // otherwise switch to it.
+                        if selected {
+                            model.requestScrollToTop()
+                        } else {
+                            model.selectedKey = ref.key
+                        }
                     } label: {
                         VStack(spacing: 2) {
                             Image(systemName: ref.symbol)
