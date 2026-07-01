@@ -19,6 +19,11 @@ struct TimelinePagerView: View {
     @State private var showingUserSelect = false
     @State private var activePrompt: PromptKind?
     @State private var promptText = ""
+    @State private var showingMore = false
+    // Runs after the More sheet finishes dismissing, so a follow-on sheet/alert
+    // (Settings, Accounts, a text prompt) presents cleanly without a sheet-over-
+    // sheet conflict.
+    @State private var pendingMoreAction: (() -> Void)?
 
     /// A text-entry prompt for opening a parameterized timeline.
     private enum PromptKind: String, Identifiable {
@@ -78,7 +83,7 @@ struct TimelinePagerView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Menu { moreMenu } label: { Label("More", systemImage: "ellipsis.circle") }
+                    Button { showingMore = true } label: { Label("More", systemImage: "ellipsis.circle") }
                         .accessibilityLabel("More")
                         .accountSwitchAccessibilityActions(model)
                 }
@@ -93,6 +98,11 @@ struct TimelinePagerView: View {
                     Button { model.composeRequest = ComposeRequest() } label: { Label("New Post", systemImage: "square.and.pencil") }
                 }
             }
+            .sheet(isPresented: $showingMore, onDismiss: {
+                let action = pendingMoreAction
+                pendingMoreAction = nil
+                action?()
+            }) { moreSheet }
             .sheet(item: $model.composeRequest) { request in
                 ComposeView(replyTo: request.replyTo, quoting: request.quoting, editing: request.editing)
             }
@@ -140,69 +150,87 @@ struct TimelinePagerView: View {
         }
     }
 
-    @ViewBuilder private var moreMenu: some View {
-        Button { showingSettings = true } label: { Label("Settings", systemImage: "gearshape") }
-        Button { showingAddAccount = true } label: { Label("Accounts", systemImage: "person.crop.circle") }
-        let accounts = model.accountStore.accounts
-        if accounts.count > 1 {
-            Menu {
-                ForEach(accounts, id: \.accountKey) { account in
-                    Button("@\(account.me.acct)") { model.switchAccount(to: account.accountKey) }
+    // The More button opens this as a sheet (rather than a toolbar Menu, whose
+    // custom VoiceOver actions SwiftUI silently drops). Every option is a plain,
+    // fully-accessible List row — account switching in particular is a direct row
+    // per account.
+    @ViewBuilder private var moreSheet: some View {
+        NavigationStack {
+            List {
+                Section {
+                    Button { present { showingSettings = true } } label: { Label("Settings", systemImage: "gearshape") }
+                    Button { present { showingAddAccount = true } } label: { Label("Accounts", systemImage: "person.crop.circle") }
                 }
-            } label: {
-                Label("Switch Account", systemImage: "person.2")
-            }
-        }
-        Divider()
-        Menu { newTimelineMenu } label: { Label("New Timeline", systemImage: "rectangle.stack.badge.plus") }
-        if let key = model.selectedKey {
-            Divider()
-            Button { Task { await model.refresh(key: key) } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
-            Button { model.toggleMute(key: key) } label: {
-                Label(model.isMuted(key) ? "Unmute" : "Mute", systemImage: model.isMuted(key) ? "speaker.wave.2" : "speaker.slash")
-            }
-            Button { model.clearTimeline(key: key) } label: { Label("Clear Items", systemImage: "trash") }
-            Button { model.requestNavBack() } label: { Label("Go Back", systemImage: "arrow.uturn.backward") }
-            if model.selectedRef?.source.isUserList == true {
-                Button { showingUserSelect = true } label: { Label("Select…", systemImage: "checkmark.circle") }
-            }
-            if model.selectedRef?.source.isDismissable == true {
-                Button(role: .destructive) { model.closeTimeline(key: key) } label: { Label("Close Tab", systemImage: "xmark.circle") }
-            }
-        }
-    }
-
-    @ViewBuilder private var newTimelineMenu: some View {
-        if let account = model.selectedAccount {
-            if account.platform == .mastodon {
-                Button("Local Timeline") { model.spawn(.local, for: account) }
-                Button("Federated Timeline") { model.spawn(.federated, for: account) }
-            }
-            Button("User Timeline…") { activePrompt = .user }
-            Button("Hashtag…") { activePrompt = .hashtag }
-            Button("Search Posts…") { activePrompt = .searchPosts }
-            Button("Search People…") { activePrompt = .searchPeople }
-            Button("Favorites") { model.spawn(.favorites, for: account) }
-            if account.platform == .mastodon {
-                Button("Bookmarks") { model.spawn(.bookmarks, for: account) }
-                Button("Trending") { model.spawn(.trending, for: account) }
-                if !model.availableLists.isEmpty {
-                    Menu("Lists") {
-                        ForEach(model.availableLists) { list in
-                            Button(list.title) { model.spawn(.list(id: list.id, title: list.title), for: account) }
+                let accounts = model.accountStore.accounts
+                if accounts.count > 1 {
+                    Section("Switch Account") {
+                        ForEach(accounts, id: \.accountKey) { account in
+                            let current = model.selectedRef?.account.accountKey == account.accountKey
+                            Button {
+                                model.switchAccount(to: account.accountKey)
+                                showingMore = false
+                            } label: {
+                                Label("@\(account.me.acct)", systemImage: current ? "checkmark.circle.fill" : "person.circle")
+                            }
                         }
                     }
                 }
-                Button("Remote Instance…") { activePrompt = .remoteInstance }
-                Button("Remote User…") { activePrompt = .remoteUser }
-            }
-            if !model.availableFeeds.isEmpty {
-                Menu("Feeds") {
-                    ForEach(model.availableFeeds) { feed in
-                        Button(feed.title) { model.spawn(.feed(uri: feed.id, title: feed.title), for: account) }
-                    }
+                if let account = model.selectedAccount {
+                    Section("New Timeline") { newTimelineRows(account) }
+                }
+                if let key = model.selectedKey {
+                    Section("This Timeline") { timelineActionRows(key) }
                 }
             }
+            .navigationTitle("More")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Done") { showingMore = false } } }
+        }
+    }
+
+    /// Dismiss the More sheet, then run `action` once it's gone (see the sheet's
+    /// onDismiss) — used for rows that open another sheet or a text prompt.
+    private func present(_ action: @escaping () -> Void) {
+        pendingMoreAction = action
+        showingMore = false
+    }
+
+    @ViewBuilder private func newTimelineRows(_ account: any SocialAccount) -> some View {
+        if account.platform == .mastodon {
+            Button("Local Timeline") { model.spawn(.local, for: account); showingMore = false }
+            Button("Federated Timeline") { model.spawn(.federated, for: account); showingMore = false }
+        }
+        Button("User Timeline…") { present { activePrompt = .user } }
+        Button("Hashtag…") { present { activePrompt = .hashtag } }
+        Button("Search Posts…") { present { activePrompt = .searchPosts } }
+        Button("Search People…") { present { activePrompt = .searchPeople } }
+        Button("Favorites") { model.spawn(.favorites, for: account); showingMore = false }
+        if account.platform == .mastodon {
+            Button("Bookmarks") { model.spawn(.bookmarks, for: account); showingMore = false }
+            Button("Trending") { model.spawn(.trending, for: account); showingMore = false }
+            Button("Remote Instance…") { present { activePrompt = .remoteInstance } }
+            Button("Remote User…") { present { activePrompt = .remoteUser } }
+        }
+        ForEach(model.availableLists) { list in
+            Button(list.title) { model.spawn(.list(id: list.id, title: list.title), for: account); showingMore = false }
+        }
+        ForEach(model.availableFeeds) { feed in
+            Button(feed.title) { model.spawn(.feed(uri: feed.id, title: feed.title), for: account); showingMore = false }
+        }
+    }
+
+    @ViewBuilder private func timelineActionRows(_ key: String) -> some View {
+        Button { Task { await model.refresh(key: key) }; showingMore = false } label: { Label("Refresh", systemImage: "arrow.clockwise") }
+        Button { model.toggleMute(key: key); showingMore = false } label: {
+            Label(model.isMuted(key) ? "Unmute" : "Mute", systemImage: model.isMuted(key) ? "speaker.wave.2" : "speaker.slash")
+        }
+        Button { model.clearTimeline(key: key); showingMore = false } label: { Label("Clear Items", systemImage: "trash") }
+        Button { model.requestNavBack(); showingMore = false } label: { Label("Go Back", systemImage: "arrow.uturn.backward") }
+        if model.selectedRef?.source.isUserList == true {
+            Button { present { showingUserSelect = true } } label: { Label("Select…", systemImage: "checkmark.circle") }
+        }
+        if model.selectedRef?.source.isDismissable == true {
+            Button(role: .destructive) { model.closeTimeline(key: key); showingMore = false } label: { Label("Close Tab", systemImage: "xmark.circle") }
         }
     }
 
