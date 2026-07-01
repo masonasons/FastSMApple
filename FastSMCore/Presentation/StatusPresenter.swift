@@ -92,10 +92,13 @@ public enum StatusPresenter {
         func plural(_ count: Int, _ singular: String) -> String {
             "\(count) \(singular)\(count == 1 ? "" : "s")"
         }
-        return [
-            plural(status.repliesCount, "reply").replacingOccurrences(of: "replys", with: "replies"),
-            plural(status.boostsCount, "boost"),
-            plural(status.favouritesCount, "favorite"),
-        ].joined(separator: ", ")
+        // Only mention counts that are non-zero — "0 boosts" is just noise.
+        var parts: [String] = []
+        if status.repliesCount > 0 {
+            parts.append(plural(status.repliesCount, "reply").replacingOccurrences(of: "replys", with: "replies"))
+        }
+        if status.boostsCount > 0 { parts.append(plural(status.boostsCount, "boost")) }
+        if status.favouritesCount > 0 { parts.append(plural(status.favouritesCount, "favorite")) }
+        return parts.joined(separator: ", ")
     }
 }
