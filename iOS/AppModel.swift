@@ -69,8 +69,19 @@ final class AppModel {
     var itemsByKey: [String: [TimelineItem]] = [:]
     var mutedKeys: Set<String> = []
     var selectedKey: String? {
-        didSet { positions.selectedTimelineKey = selectedKey }
+        didSet {
+            positions.selectedTimelineKey = selectedKey
+            // Remember the order timelines were viewed so closing one returns to
+            // the timeline you were on before it, not the next one in the list.
+            if let old = oldValue, old != selectedKey {
+                selectionHistory.removeAll { $0 == old }
+                selectionHistory.append(old)
+                if selectionHistory.count > 20 { selectionHistory.removeFirst() }
+            }
+        }
     }
+    /// Keys of previously-selected timelines, oldest first (most recent last).
+    private var selectionHistory: [String] = []
     var presentedError: PresentedError?
     var accountsVersion = 0
     /// Set to present the compose sheet (new post, reply, or quote).
@@ -334,21 +345,26 @@ final class AppModel {
         }
         let wasSelected = selectedKey == key
         let origin = ref.originKey
-        let index = refs.firstIndex(of: ref)
         refs.removeAll { $0.key == key }
         controllers[key] = nil
         itemsByKey[key] = nil
         mutedKeys.remove(key)
+        selectionHistory.removeAll { $0 == key }
         Task { await cache.remove(key: key) }
         positions.setPosition(nil, forKey: key)
         persistOpenTimelines()
         sound.play(.close)
         if wasSelected {
-            if let origin, refs.contains(where: { $0.key == origin }) {
+            // Return to the timeline you were on before this one (same account),
+            // falling back to where it was opened from, then the account's first.
+            let account = ref.account.accountKey
+            let sameAccount = refs.filter { $0.account.accountKey == account }.map(\.key)
+            if let previous = selectionHistory.last(where: { sameAccount.contains($0) }) {
+                selectedKey = previous
+            } else if let origin, sameAccount.contains(origin) {
                 selectedKey = origin
             } else {
-                let newIndex = min(index ?? 0, refs.count - 1)
-                selectedKey = refs.indices.contains(newIndex) ? refs[newIndex].key : refs.first?.key
+                selectedKey = sameAccount.first ?? refs.first?.key
             }
         }
     }
@@ -625,8 +641,24 @@ final class AppModel {
         }
     }
 
-    func canOpenLinks(_ status: Status) -> Bool { !PostLinks.links(for: status).isEmpty }
-    func canViewMedia(_ status: Status) -> Bool { !PostLinks.viewableMedia(for: status).isEmpty }
+    // Whether a post has openable links / viewable media. Memoized by post id:
+    // PostLinks.links runs an HTML regex, and these are queried while building each
+    // row's context menu AND its VoiceOver actions — so without caching the parse
+    // re-runs for every row on every VoiceOver scroll, which lags badly.
+    @ObservationIgnored private var linkMediaFlags: [String: (links: Bool, media: Bool)] = [:]
+
+    private func linkMedia(_ status: Status) -> (links: Bool, media: Bool) {
+        let key = status.displayStatus.id
+        if let hit = linkMediaFlags[key] { return hit }
+        let flags = (links: !PostLinks.links(for: status).isEmpty,
+                     media: !PostLinks.viewableMedia(for: status).isEmpty)
+        if linkMediaFlags.count > 2000 { linkMediaFlags.removeAll() }   // simple bound
+        linkMediaFlags[key] = flags
+        return flags
+    }
+
+    func canOpenLinks(_ status: Status) -> Bool { linkMedia(status).links }
+    func canViewMedia(_ status: Status) -> Bool { linkMedia(status).media }
 
     func openLinks(for status: Status) {
         let links = PostLinks.links(for: status)
