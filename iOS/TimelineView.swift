@@ -79,7 +79,8 @@ struct TimelinePagerView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Menu { moreMenu } label: { Label("More", systemImage: "ellipsis.circle") }
-                        .accessibilityActions { accountSwitchActions }
+                        .accessibilityLabel("More")
+                        .accountSwitchAccessibilityActions(model)
                 }
                 if model.selectedRef?.source.isDismissable == true, let key = model.selectedKey {
                     ToolbarItem(placement: .topBarLeading) {
@@ -136,16 +137,6 @@ struct TimelinePagerView: View {
                 Button("Cancel", role: .cancel) { model.mediaChoices = nil }
             }
             .errorAlert(Binding(get: { model.presentedError }, set: { model.presentedError = $0 }))
-        }
-    }
-
-    /// VoiceOver actions on the More button to jump between accounts.
-    @ViewBuilder private var accountSwitchActions: some View {
-        let accounts = model.accountStore.accounts
-        if accounts.count > 1 {
-            ForEach(accounts, id: \.accountKey) { account in
-                Button("Switch to @\(account.me.acct)") { model.switchAccount(to: account.accountKey) }
-            }
         }
     }
 
@@ -642,6 +633,30 @@ struct PostActions: View {
     var body: some View {
         ForEach(actions) { action in
             Button(action.title, action: action.perform)
+        }
+    }
+}
+
+private extension View {
+    /// Adds one VoiceOver custom action per account ("Switch to @handle") to the
+    /// More button, so a VoiceOver user can jump straight to another account from
+    /// its Actions rotor.
+    ///
+    /// Uses the singular `accessibilityAction(named:)` chained once per account
+    /// rather than the container-form `accessibilityActions {}` — the latter is
+    /// silently dropped when attached to a toolbar `Menu`, which is why these
+    /// actions never appeared.
+    @ViewBuilder
+    func accountSwitchAccessibilityActions(_ model: AppModel) -> some View {
+        let accounts = model.accountStore.accounts
+        if accounts.count > 1 {
+            accounts.reduce(AnyView(self)) { view, account in
+                AnyView(view.accessibilityAction(named: "Switch to @\(account.me.acct)") {
+                    model.switchAccount(to: account.accountKey)
+                })
+            }
+        } else {
+            self
         }
     }
 }
