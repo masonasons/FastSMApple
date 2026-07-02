@@ -343,8 +343,32 @@ final class AppModel {
             sound.play(.error)
             return
         }
-        let wasSelected = selectedKey == key
-        let origin = ref.originKey
+        if selectedKey == key {
+            // Switch to the target tab BEFORE removing this one, so the paged
+            // TabView commits the new selection instead of snapping to a neighbor
+            // when the current page disappears. Remove on the next runloop, once
+            // the selection has settled.
+            selectedKey = closeTarget(for: ref)
+            DispatchQueue.main.async { [weak self] in
+                MainActor.assumeIsolated { self?.removeTimeline(key) }
+            }
+        } else {
+            removeTimeline(key)
+        }
+    }
+
+    /// Where to land after closing `ref`: the timeline you were on before it
+    /// (same account), then where it was opened from, then the account's first.
+    private func closeTarget(for ref: TimelineRef) -> String? {
+        let account = ref.account.accountKey
+        let survivors = refs.filter { $0.key != ref.key && $0.account.accountKey == account }.map(\.key)
+        return selectionHistory.last(where: { survivors.contains($0) })
+            ?? ref.originKey.flatMap { survivors.contains($0) ? $0 : nil }
+            ?? survivors.first
+            ?? refs.first(where: { $0.key != ref.key })?.key
+    }
+
+    private func removeTimeline(_ key: String) {
         refs.removeAll { $0.key == key }
         controllers[key] = nil
         itemsByKey[key] = nil
@@ -354,19 +378,6 @@ final class AppModel {
         positions.setPosition(nil, forKey: key)
         persistOpenTimelines()
         sound.play(.close)
-        if wasSelected {
-            // Return to the timeline you were on before this one (same account),
-            // falling back to where it was opened from, then the account's first.
-            let account = ref.account.accountKey
-            let sameAccount = refs.filter { $0.account.accountKey == account }.map(\.key)
-            if let previous = selectionHistory.last(where: { sameAccount.contains($0) }) {
-                selectedKey = previous
-            } else if let origin, sameAccount.contains(origin) {
-                selectedKey = origin
-            } else {
-                selectedKey = sameAccount.first ?? refs.first?.key
-            }
-        }
     }
 
     func clearTimeline(key: String) {
