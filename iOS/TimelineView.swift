@@ -320,6 +320,9 @@ struct TimelinePageView: View {
                         Divider()
                     }
                     .id(item.id)
+                    .contentShape(Rectangle())
+                    // Tapping a post (VoiceOver double-tap, too) opens its thread.
+                    .onTapGesture { activate(item) }
                     .accessibilityElement(children: .combine)
                     .accessibilityFocused($focusedID, equals: item.id)
                     .contextMenu { PostActions(item: item, ref: ref, index: index) }
@@ -378,6 +381,16 @@ struct TimelinePageView: View {
         guard let firstID = items.first?.id else { return }
         proxy.scrollTo(firstID, anchor: .top)
         focusedID = firstID
+    }
+
+    /// The primary action for a row: a post opens its thread; a user row opens
+    /// that user's posts.
+    private func activate(_ item: TimelineItem) {
+        if let status = item.actionableStatus {
+            model.spawn(.thread(statusID: status.id, title: "Thread: \(status.account.bestName)"), for: ref.account)
+        } else if case .user(let user) = item {
+            model.spawn(.userPosts(userID: user.id, title: "@\(user.acct)"), for: ref.account)
+        }
     }
 
     /// Add one VoiceOver rotor per enabled movement unit; each rotor's entries
